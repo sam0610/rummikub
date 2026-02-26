@@ -38,8 +38,14 @@ export function Timer({ players, timeLimit, onEndGame }: TimerProps) {
 
   const percentage = timeLeft / timeLimit;
   let colorClass = "text-emerald-500";
-  if (percentage < 0.25) colorClass = "text-red-500";
-  else if (percentage < 0.5) colorClass = "text-orange-500";
+  let bgColorClass = "bg-emerald-500";
+  if (percentage < 0.25) {
+    colorClass = "text-red-500";
+    bgColorClass = "bg-red-500";
+  } else if (percentage < 0.5) {
+    colorClass = "text-orange-500";
+    bgColorClass = "bg-orange-500";
+  }
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
@@ -47,30 +53,39 @@ export function Timer({ players, timeLimit, onEndGame }: TimerProps) {
         <div className="text-stone-500 font-medium uppercase tracking-wider text-sm mb-2">Current Turn</div>
         <h2 className="text-3xl font-bold text-stone-900 mb-8">{currentPlayer.name}</h2>
         
-        <div className="relative w-64 h-64 flex items-center justify-center mb-8">
-          <svg className="absolute inset-0 w-full h-full -rotate-90">
-            <circle
-              cx="128"
-              cy="128"
-              r="120"
-              fill="none"
-              stroke="#f5f5f4"
-              strokeWidth="12"
-            />
-            <circle
-              cx="128"
-              cy="128"
-              r="120"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="12"
-              strokeDasharray={2 * Math.PI * 120}
-              strokeDashoffset={2 * Math.PI * 120 * (1 - percentage)}
-              className={`transition-all duration-1000 ease-linear ${colorClass}`}
-              strokeLinecap="round"
-            />
-          </svg>
-          <div className={`text-7xl font-mono font-light tracking-tighter ${colorClass}`}>
+        <div className="flex flex-col items-center justify-center mb-8 gap-6">
+          <motion.div 
+            key={currentPlayerIndex}
+            initial={{ rotate: 180 }}
+            animate={{ rotate: 0 }}
+            transition={{ duration: 0.6, type: "spring", bounce: 0.5 }}
+            className="relative flex flex-col items-center justify-center"
+          >
+            {/* Top Bulb */}
+            <div className="w-24 h-24 border-4 border-stone-300 rounded-t-3xl rounded-b-[48px] relative overflow-hidden bg-stone-50 z-10 shadow-inner">
+              <div 
+                className={`absolute bottom-0 w-full transition-all duration-1000 ease-linear ${bgColorClass}`}
+                style={{ height: `${percentage * 100}%` }}
+              />
+            </div>
+            
+            {/* Neck */}
+            <div className="w-6 h-4 border-l-4 border-r-4 border-stone-300 bg-stone-50 z-20 -my-1" />
+            
+            {/* Bottom Bulb */}
+            <div className="w-24 h-24 border-4 border-stone-300 rounded-b-3xl rounded-t-[48px] relative overflow-hidden bg-stone-50 z-10 shadow-inner flex justify-center">
+              {/* Falling Sand Stream */}
+              {!isPaused && percentage > 0 && (
+                <div className={`absolute top-0 w-1.5 h-full ${bgColorClass} opacity-80 animate-pulse`} />
+              )}
+              <div 
+                className={`absolute bottom-0 w-full transition-all duration-1000 ease-linear ${bgColorClass}`}
+                style={{ height: `${(1 - percentage) * 100}%` }}
+              />
+            </div>
+          </motion.div>
+
+          <div className={`text-6xl font-mono font-light tracking-tighter ${colorClass}`}>
             {timeLeft}
           </div>
         </div>

@@ -44,17 +44,45 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
     setError(null);
 
     try {
-      const reader = new FileReader();
-      const base64Promise = new Promise<string>((resolve, reject) => {
-        reader.onload = () => {
-          const result = reader.result as string;
-          const base64 = result.split(',')[1];
-          resolve(base64);
-        };
-        reader.onerror = reject;
-      });
-      reader.readAsDataURL(file);
-      const base64Image = await base64Promise;
+      const compressImage = (file: File): Promise<string> => {
+        return new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(file);
+          reader.onload = (event) => {
+            const img = new Image();
+            img.src = event.target?.result as string;
+            img.onload = () => {
+              const canvas = document.createElement('canvas');
+              const MAX_WIDTH = 1024;
+              const MAX_HEIGHT = 1024;
+              let width = img.width;
+              let height = img.height;
+
+              if (width > height) {
+                if (width > MAX_WIDTH) {
+                  height *= MAX_WIDTH / width;
+                  width = MAX_WIDTH;
+                }
+              } else {
+                if (height > MAX_HEIGHT) {
+                  width *= MAX_HEIGHT / height;
+                  height = MAX_HEIGHT;
+                }
+              }
+              canvas.width = width;
+              canvas.height = height;
+              const ctx = canvas.getContext('2d');
+              ctx?.drawImage(img, 0, 0, width, height);
+              const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+              resolve(dataUrl.split(',')[1]);
+            };
+            img.onerror = (error) => reject(error);
+          };
+          reader.onerror = (error) => reject(error);
+        });
+      };
+
+      const base64Image = await compressImage(file);
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
@@ -64,7 +92,7 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
             {
               inlineData: {
                 data: base64Image,
-                mimeType: file.type,
+                mimeType: "image/jpeg",
               }
             },
             {
@@ -91,9 +119,9 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
         p.id === targetPlayerId ? { ...p, penaltyScore: result.score, scoreBreakdown: result.breakdown } : p
       ));
 
-    } catch (err) {
+    } catch (err: any) {
       console.error(err);
-      setError("Failed to analyze image. Please try again or enter manually.");
+      setError(`Failed to analyze image: ${err.message || 'Unknown error'}. Please try again or enter manually.`);
     } finally {
       setAnalyzingId(null);
       setTargetPlayerId(null);

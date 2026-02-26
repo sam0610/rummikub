@@ -86,7 +86,7 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
 
       const ai = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY });
       const response = await ai.models.generateContent({
-        model: "gemini-3.1-pro-preview",
+        model: "gemini-3-flash-preview",
         contents: {
           parts: [
             {
@@ -121,7 +121,13 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
 
     } catch (err: any) {
       console.error(err);
-      setError(`Failed to analyze image: ${err.message || 'Unknown error'}. Please try again or enter manually.`);
+      let errorMessage = err.message || 'Unknown error';
+      if (errorMessage.includes('429') || errorMessage.includes('Quota')) {
+        errorMessage = 'API quota exceeded. Please wait a moment and try again, or use a different API key.';
+      } else if (errorMessage.length > 100) {
+        errorMessage = 'An error occurred while analyzing the image.';
+      }
+      setError(`Failed to analyze image: ${errorMessage}`);
     } finally {
       setAnalyzingId(null);
       setTargetPlayerId(null);

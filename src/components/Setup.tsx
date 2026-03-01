@@ -11,14 +11,14 @@ interface SetupProps {
 
 export function Setup({ onStart, initialPlayers, initialTimeLimit }: SetupProps) {
   const [players, setPlayers] = useState<Player[]>(initialPlayers || [
-    { id: '1', name: 'Player 1', penaltyScore: null, isWinner: false, totalScore: 0 },
-    { id: '2', name: 'Player 2', penaltyScore: null, isWinner: false, totalScore: 0 },
+    { id: '1', name: '玩家 1', penaltyScore: null, isWinner: false, totalScore: 0 },
+    { id: '2', name: '玩家 2', penaltyScore: null, isWinner: false, totalScore: 0 },
   ]);
   const [timeLimit, setTimeLimit] = useState(initialTimeLimit || 60);
 
   const addPlayer = () => {
     if (players.length >= 4) return;
-    setPlayers([...players, { id: Date.now().toString(), name: `Player ${players.length + 1}`, penaltyScore: null, isWinner: false, totalScore: 0 }]);
+    setPlayers([...players, { id: Date.now().toString(), name: `玩家 ${players.length + 1}`, penaltyScore: null, isWinner: false, totalScore: 0 }]);
   };
 
   const removePlayer = (id: string) => {
@@ -33,7 +33,7 @@ export function Setup({ onStart, initialPlayers, initialTimeLimit }: SetupProps)
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-8">
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
-        <h2 className="text-lg font-semibold mb-4">Players</h2>
+        <h2 className="text-lg font-semibold mb-4">玩家列表</h2>
         <div className="space-y-3">
           {players.map((p, i) => (
             <div key={p.id} className="flex items-center gap-2">
@@ -45,7 +45,7 @@ export function Setup({ onStart, initialPlayers, initialTimeLimit }: SetupProps)
                 value={p.name}
                 onChange={(e) => updateName(p.id, e.target.value)}
                 className="flex-1 bg-stone-50 border border-stone-200 rounded-xl px-4 py-2 focus:outline-none focus:ring-2 focus:ring-orange-500"
-                placeholder="Player Name"
+                placeholder="玩家名稱"
               />
               {players.length > 2 && (
                 <button onClick={() => removePlayer(p.id)} className="p-2 text-stone-400 hover:text-red-500 shrink-0">
@@ -57,13 +57,13 @@ export function Setup({ onStart, initialPlayers, initialTimeLimit }: SetupProps)
         </div>
         {players.length < 4 && (
           <button onClick={addPlayer} className="mt-4 flex items-center gap-2 text-orange-600 font-medium hover:text-orange-700">
-            <Plus size={20} /> Add Player
+            <Plus size={20} /> 新增玩家
           </button>
         )}
       </div>
 
       <div className="bg-white p-6 rounded-2xl shadow-sm border border-stone-200">
-        <h2 className="text-lg font-semibold mb-4">Turn Time Limit</h2>
+        <h2 className="text-lg font-semibold mb-4">每回合限時</h2>
         <div className="flex items-center gap-4">
           <input
             type="range"
@@ -85,7 +85,7 @@ export function Setup({ onStart, initialPlayers, initialTimeLimit }: SetupProps)
         className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-lg py-4 rounded-2xl shadow-md flex items-center justify-center gap-2 transition-colors"
       >
         <Play fill="currentColor" size={24} />
-        Start Game
+        開始遊戲
       </button>
     </motion.div>
   );

@@ -17,8 +17,8 @@ export function Results({ players, onNewGame, onReset }: ResultsProps) {
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
       <div className="text-center mb-8">
-        <h2 className="text-3xl font-bold text-stone-900 mb-2">Final Scores</h2>
-        <p className="text-stone-500">Game Over!</p>
+        <h2 className="text-3xl font-bold text-stone-900 mb-2">最終得分</h2>
+        <p className="text-stone-500">遊戲結束！</p>
       </div>
 
       <div className="bg-white rounded-3xl shadow-sm border border-stone-200 overflow-hidden">
@@ -35,7 +35,7 @@ export function Results({ players, onNewGame, onReset }: ResultsProps) {
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-stone-900">{p.name}</h3>
-                  {p.isWinner && <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">Round Winner</span>}
+                  {p.isWinner && <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">本局贏家</span>}
                 </div>
               </div>
               <div className="flex flex-col items-end">
@@ -43,7 +43,7 @@ export function Results({ players, onNewGame, onReset }: ResultsProps) {
                   {p.totalScore > 0 ? '+' : ''}{p.totalScore}
                 </div>
                 <div className="text-sm text-stone-500 font-mono font-medium">
-                  Round: <span className={isPositive ? 'text-emerald-500' : isZero ? 'text-stone-400' : 'text-red-500'}>{isPositive ? '+' : ''}{finalScore}</span>
+                  本局： <span className={isPositive ? 'text-emerald-500' : isZero ? 'text-stone-400' : 'text-red-500'}>{isPositive ? '+' : ''}{finalScore}</span>
                 </div>
               </div>
             </div>
@@ -57,14 +57,14 @@ export function Results({ players, onNewGame, onReset }: ResultsProps) {
           className="w-full bg-stone-900 hover:bg-black text-white font-bold text-lg py-4 rounded-2xl shadow-md flex items-center justify-center gap-2 transition-colors"
         >
           <Play size={24} />
-          Play Next Round
+          開始下一局
         </button>
         <button
           onClick={onReset}
           className="w-full bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold text-lg py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
         >
           <RotateCcw size={24} />
-          End Game (Reset All)
+          結束遊戲 (重設所有資料)
         </button>
       </div>
     </motion.div>

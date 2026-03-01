@@ -121,13 +121,13 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
 
     } catch (err: any) {
       console.error(err);
-      let errorMessage = err.message || 'Unknown error';
+      let errorMessage = err.message || '未知錯誤';
       if (errorMessage.includes('429') || errorMessage.includes('Quota')) {
-        errorMessage = 'API quota exceeded. Please wait a moment and try again, or use a different API key.';
+        errorMessage = 'API 額度已滿。請稍後再試，或使用其他 API Key。';
       } else if (errorMessage.length > 100) {
-        errorMessage = 'An error occurred while analyzing the image.';
+        errorMessage = '分析圖片時發生錯誤。';
       }
-      setError(`Failed to analyze image: ${errorMessage}`);
+      setError(`圖片分析失敗：${errorMessage}`);
     } finally {
       setAnalyzingId(null);
       setTargetPlayerId(null);
@@ -141,8 +141,8 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
   return (
     <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-6">
       <div className="text-center mb-8">
-        <h2 className="text-2xl font-bold text-stone-900">Calculate Scores</h2>
-        <p className="text-stone-500 mt-2">Who won? Take photos of the remaining tiles for the others.</p>
+        <h2 className="text-2xl font-bold text-stone-900">計算分數</h2>
+        <p className="text-stone-500 mt-2">誰贏了？請幫其他玩家拍攝剩下的牌來計算罰分。</p>
       </div>
 
       {error && (
@@ -174,12 +174,12 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
                   onClick={() => handleSetWinner(p.id)}
                   className="text-sm font-medium text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg hover:bg-orange-100"
                 >
-                  Set as Winner
+                  設為贏家
                 </button>
               )}
               {hasWinner && p.isWinner && (
                 <span className="text-sm font-bold text-orange-600 bg-orange-50 px-3 py-1.5 rounded-lg">
-                  Winner
+                  贏家
                 </span>
               )}
             </div>
@@ -188,7 +188,7 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
               <div className="flex flex-col gap-3">
                 <div className="flex gap-3">
                   <div className="flex-1">
-                    <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1 block">Penalty Score</label>
+                    <label className="text-xs font-semibold text-stone-500 uppercase tracking-wider mb-1 block">罰分</label>
                     <input
                       type="number"
                       value={p.penaltyScore === null ? '' : p.penaltyScore}
@@ -208,13 +208,13 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
                       ) : (
                         <Camera size={20} />
                       )}
-                      <span className="hidden sm:inline">Scan</span>
+                      <span className="hidden sm:inline">拍照計分</span>
                     </button>
                   </div>
                 </div>
                 {p.scoreBreakdown && (
                   <div className="bg-stone-50 p-3 rounded-xl border border-stone-200 text-sm text-stone-600">
-                    <span className="font-semibold text-stone-700">Calculation:</span> {p.scoreBreakdown}
+                    <span className="font-semibold text-stone-700">計算過程：</span> {p.scoreBreakdown}
                   </div>
                 )}
               </div>
@@ -229,7 +229,7 @@ export function Scoring({ players, setPlayers, onFinish }: ScoringProps) {
         className="w-full bg-orange-600 hover:bg-orange-700 text-white font-bold text-lg py-4 rounded-2xl shadow-md flex items-center justify-center gap-2 transition-colors disabled:opacity-50 disabled:cursor-not-allowed mt-8"
       >
         <CheckCircle2 size={24} />
-        Show Final Results
+        查看最終結果
       </button>
     </motion.div>
   );

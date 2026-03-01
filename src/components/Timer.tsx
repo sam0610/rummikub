@@ -56,7 +56,7 @@ export function Timer({ players, timeLimit, initialState, onStateChange, onEndGa
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="flex flex-col items-center">
       <div className="w-full bg-white rounded-3xl shadow-sm border border-stone-200 p-8 flex flex-col items-center relative overflow-hidden">
-        <div className="text-stone-500 font-medium uppercase tracking-wider text-sm mb-2">Current Turn</div>
+        <div className="text-stone-500 font-medium uppercase tracking-wider text-sm mb-2">目前輪到</div>
         <h2 className="text-3xl font-bold text-stone-900 mb-8">{currentPlayer.name}</h2>
         
         <div className="flex flex-col items-center justify-center mb-8 gap-6">
@@ -108,14 +108,14 @@ export function Timer({ players, timeLimit, initialState, onStateChange, onEndGa
             className="flex-[3] bg-stone-900 hover:bg-black text-white font-bold py-4 rounded-2xl flex items-center justify-center gap-2 shadow-md transition-colors"
           >
             <SkipForward size={24} />
-            End Turn
+            結束回合
           </button>
         </div>
       </div>
 
       <div className="mt-8 w-full">
         <div className="flex justify-between items-center mb-4 px-2">
-          <h3 className="font-semibold text-stone-500 uppercase text-xs tracking-wider">Up Next</h3>
+          <h3 className="font-semibold text-stone-500 uppercase text-xs tracking-wider">下一位</h3>
         </div>
         <div className="flex gap-2 overflow-x-auto pb-4 snap-x">
           {players.map((p, i) => {
@@ -137,7 +137,7 @@ export function Timer({ players, timeLimit, initialState, onStateChange, onEndGa
         className="mt-8 w-full bg-red-100 hover:bg-red-200 text-red-700 font-bold py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
       >
         <Flag size={24} />
-        Someone Won! (End Game)
+        有人贏了！(結算分數)
       </button>
     </motion.div>
   );

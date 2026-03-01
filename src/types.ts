@@ -4,4 +4,5 @@ export interface Player {
   penaltyScore: number | null;
   scoreBreakdown?: string;
   isWinner: boolean;
+  totalScore: number;
 }

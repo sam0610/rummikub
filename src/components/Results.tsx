@@ -12,11 +12,7 @@ interface ResultsProps {
 export function Results({ players, onNewGame, onReset }: ResultsProps) {
   const totalPenalty = players.reduce((sum, p) => sum + (p.isWinner ? 0 : (p.penaltyScore || 0)), 0);
 
-  const sortedPlayers = [...players].sort((a, b) => {
-    if (a.isWinner) return -1;
-    if (b.isWinner) return 1;
-    return (a.penaltyScore || 0) - (b.penaltyScore || 0);
-  });
+  const sortedPlayers = [...players].sort((a, b) => b.totalScore - a.totalScore);
 
   return (
     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} className="space-y-8">
@@ -34,16 +30,21 @@ export function Results({ players, onNewGame, onReset }: ResultsProps) {
           return (
             <div key={p.id} className={`p-6 flex items-center justify-between border-b border-stone-100 last:border-0 ${p.isWinner ? 'bg-orange-50/50' : ''}`}>
               <div className="flex items-center gap-4">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${p.isWinner ? 'bg-orange-500 text-white' : 'bg-stone-100 text-stone-500'}`}>
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center font-bold ${i === 0 && p.totalScore > 0 ? 'bg-yellow-400 text-yellow-900' : p.isWinner ? 'bg-orange-500 text-white' : 'bg-stone-100 text-stone-500'}`}>
                   {i + 1}
                 </div>
                 <div>
                   <h3 className="font-bold text-lg text-stone-900">{p.name}</h3>
-                  {p.isWinner && <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">Winner</span>}
+                  {p.isWinner && <span className="text-xs font-bold text-orange-600 uppercase tracking-wider">Round Winner</span>}
                 </div>
               </div>
-              <div className={`text-2xl font-mono font-bold ${isPositive ? 'text-emerald-500' : isZero ? 'text-stone-400' : 'text-red-500'}`}>
-                {isPositive ? '+' : ''}{finalScore}
+              <div className="flex flex-col items-end">
+                <div className={`text-2xl font-mono font-bold ${p.totalScore > 0 ? 'text-emerald-500' : p.totalScore === 0 ? 'text-stone-400' : 'text-red-500'}`}>
+                  {p.totalScore > 0 ? '+' : ''}{p.totalScore}
+                </div>
+                <div className="text-sm text-stone-500 font-mono font-medium">
+                  Round: <span className={isPositive ? 'text-emerald-500' : isZero ? 'text-stone-400' : 'text-red-500'}>{isPositive ? '+' : ''}{finalScore}</span>
+                </div>
               </div>
             </div>
           );
@@ -56,14 +57,14 @@ export function Results({ players, onNewGame, onReset }: ResultsProps) {
           className="w-full bg-stone-900 hover:bg-black text-white font-bold text-lg py-4 rounded-2xl shadow-md flex items-center justify-center gap-2 transition-colors"
         >
           <Play size={24} />
-          Play Another Round
+          Play Next Round
         </button>
         <button
           onClick={onReset}
           className="w-full bg-stone-200 hover:bg-stone-300 text-stone-800 font-bold text-lg py-4 rounded-2xl flex items-center justify-center gap-2 transition-colors"
         >
           <RotateCcw size={24} />
-          New Game (Reset Players)
+          End Game (Reset All)
         </button>
       </div>
     </motion.div>

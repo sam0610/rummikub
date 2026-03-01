@@ -1,5 +1,7 @@
 {
-  "name": "Rummikub Companion",
+  "name": "Rummikub Timer",
   "description": "A timer and automatic score calculator for Rummikub.",
-  "requestFramePermissions": ["camera"]
+  "requestFramePermissions": [
+    "camera"
+  ]
 }

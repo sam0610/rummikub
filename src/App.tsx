@@ -40,7 +40,14 @@ export default function App() {
           <Scoring 
             players={players} 
             setPlayers={setPlayers} 
-            onFinish={() => setGameState('results')} 
+            onFinish={() => {
+              const totalPenalty = players.reduce((sum, p) => sum + (p.isWinner ? 0 : (p.penaltyScore || 0)), 0);
+              setPlayers(players.map(p => {
+                const roundScore = p.isWinner ? totalPenalty : -(p.penaltyScore || 0);
+                return { ...p, totalScore: p.totalScore + roundScore };
+              }));
+              setGameState('results');
+            }} 
           />
         )}
         {gameState === 'results' && (

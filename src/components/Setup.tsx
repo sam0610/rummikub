@@ -9,14 +9,14 @@ interface SetupProps {
 
 export function Setup({ onStart }: SetupProps) {
   const [players, setPlayers] = useState<Player[]>([
-    { id: '1', name: 'Player 1', penaltyScore: null, isWinner: false },
-    { id: '2', name: 'Player 2', penaltyScore: null, isWinner: false },
+    { id: '1', name: 'Player 1', penaltyScore: null, isWinner: false, totalScore: 0 },
+    { id: '2', name: 'Player 2', penaltyScore: null, isWinner: false, totalScore: 0 },
   ]);
   const [timeLimit, setTimeLimit] = useState(60);
 
   const addPlayer = () => {
     if (players.length >= 4) return;
-    setPlayers([...players, { id: Date.now().toString(), name: `Player ${players.length + 1}`, penaltyScore: null, isWinner: false }]);
+    setPlayers([...players, { id: Date.now().toString(), name: `Player ${players.length + 1}`, penaltyScore: null, isWinner: false, totalScore: 0 }]);
   };
 
   const removePlayer = (id: string) => {

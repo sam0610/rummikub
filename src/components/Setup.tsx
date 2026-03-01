@@ -5,14 +5,16 @@ import { motion } from 'motion/react';
 
 interface SetupProps {
   onStart: (players: Player[], timeLimit: number) => void;
+  initialPlayers?: Player[];
+  initialTimeLimit?: number;
 }
 
-export function Setup({ onStart }: SetupProps) {
-  const [players, setPlayers] = useState<Player[]>([
+export function Setup({ onStart, initialPlayers, initialTimeLimit }: SetupProps) {
+  const [players, setPlayers] = useState<Player[]>(initialPlayers || [
     { id: '1', name: 'Player 1', penaltyScore: null, isWinner: false, totalScore: 0 },
     { id: '2', name: 'Player 2', penaltyScore: null, isWinner: false, totalScore: 0 },
   ]);
-  const [timeLimit, setTimeLimit] = useState(60);
+  const [timeLimit, setTimeLimit] = useState(initialTimeLimit || 60);
 
   const addPlayer = () => {
     if (players.length >= 4) return;

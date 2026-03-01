@@ -6,15 +6,21 @@ import { motion } from 'motion/react';
 interface TimerProps {
   players: Player[];
   timeLimit: number;
+  initialState?: { currentPlayerIndex: number; timeLeft: number };
+  onStateChange: (state: { currentPlayerIndex: number; timeLeft: number }) => void;
   onEndGame: () => void;
 }
 
-export function Timer({ players, timeLimit, onEndGame }: TimerProps) {
-  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(0);
-  const [timeLeft, setTimeLeft] = useState(timeLimit);
+export function Timer({ players, timeLimit, initialState, onStateChange, onEndGame }: TimerProps) {
+  const [currentPlayerIndex, setCurrentPlayerIndex] = useState(initialState?.currentPlayerIndex || 0);
+  const [timeLeft, setTimeLeft] = useState(initialState?.timeLeft ?? timeLimit);
   const [isPaused, setIsPaused] = useState(false);
   
   const currentPlayer = players[currentPlayerIndex];
+
+  useEffect(() => {
+    onStateChange({ currentPlayerIndex, timeLeft });
+  }, [currentPlayerIndex, timeLeft, onStateChange]);
 
   useEffect(() => {
     if (isPaused) return;

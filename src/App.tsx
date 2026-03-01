@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Setup } from './components/Setup';
 import { Timer } from './components/Timer';
 import { Scoring } from './components/Scoring';
@@ -7,10 +7,65 @@ import { Player } from './types';
 
 export type GameState = 'setup' | 'playing' | 'scoring' | 'results';
 
+const STORAGE_KEY = 'rummikub_timer_state';
+
 export default function App() {
-  const [gameState, setGameState] = useState<GameState>('setup');
-  const [players, setPlayers] = useState<Player[]>([]);
-  const [timeLimit, setTimeLimit] = useState<number>(60);
+  const [gameState, setGameState] = useState<GameState>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved).gameState || 'setup';
+      } catch (e) {
+        return 'setup';
+      }
+    }
+    return 'setup';
+  });
+
+  const [players, setPlayers] = useState<Player[]>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved).players || [];
+      } catch (e) {
+        return [];
+      }
+    }
+    return [];
+  });
+
+  const [timeLimit, setTimeLimit] = useState<number>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved).timeLimit || 60;
+      } catch (e) {
+        return 60;
+      }
+    }
+    return 60;
+  });
+
+  const [timerState, setTimerState] = useState<{ currentPlayerIndex: number; timeLeft: number } | undefined>(() => {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try {
+        return JSON.parse(saved).timerState;
+      } catch (e) {
+        return undefined;
+      }
+    }
+    return undefined;
+  });
+
+  useEffect(() => {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify({
+      gameState,
+      players,
+      timeLimit,
+      timerState
+    }));
+  }, [gameState, players, timeLimit, timerState]);
 
   return (
     <div className="min-h-screen bg-stone-100 text-stone-900 font-sans selection:bg-orange-200">
@@ -26,6 +81,8 @@ export default function App() {
       <main className="max-w-md mx-auto p-4 sm:p-6">
         {gameState === 'setup' && (
           <Setup 
+            initialPlayers={players.length > 0 ? players : undefined}
+            initialTimeLimit={timeLimit}
             onStart={(p, t) => { setPlayers(p); setTimeLimit(t); setGameState('playing'); }} 
           />
         )}
@@ -33,7 +90,12 @@ export default function App() {
           <Timer 
             players={players} 
             timeLimit={timeLimit} 
-            onEndGame={() => setGameState('scoring')} 
+            initialState={timerState}
+            onStateChange={setTimerState}
+            onEndGame={() => {
+              setTimerState(undefined);
+              setGameState('scoring');
+            }} 
           />
         )}
         {gameState === 'scoring' && (

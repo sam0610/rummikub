@@ -1,0 +1,495 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#16685E">
+<title>魔橋助手</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='5' y='2' width='22' height='28' rx='5' fill='%23FBF8EE' stroke='%23D8D1BC'/%3E%3Ctext x='16' y='23' font-size='18' font-weight='700' text-anchor='middle' fill='%23D0302A' font-family='sans-serif'%3E7%3C/text%3E%3C/svg%3E">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@400;500&family=Fredoka:wght@500;600&family=Noto+Sans+HK:wght@400;500;700&display=swap">
+<style>
+:root{color-scheme:light;padding:env(safe-area-inset-top,0px) 0 env(safe-area-inset-bottom,0px)}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+<style>
+/* Layout: one-screen phone app. Header, one scrolling panel, floating two-tab bar at the bottom.
+   Recognised tiles are drawn like the physical set (ivory face, coloured numeral, thick lower edge). UI chrome is a neutral blue-green slate with a "rack teal" accent that is not one of the four tile colours. */
+:root{
+  --bg:#E8EEEE; --surface:#F6F9F9; --surface-2:#DCE5E5; --fg:#13201F; --muted:#526564; --line:#C7D3D3;
+  --accent:#16685E; --on-accent:#FFFFFF; --accent-soft:#CDE5E0;
+  --good:#1B7A4B; --bad:#C0392F; --warn:#A8650A;
+  --tile:#FBF8EE; --tile-edge:#D8D1BC;
+  --c-k:#1B1B1D; --c-r:#D0302A; --c-b:#1D5DBD; --c-o:#E5800C; --c-j:#7A3FB0;
+  --font-ui:"Noto Sans HK","PingFang HK","Microsoft JhengHei",system-ui,sans-serif;
+  --font-tile:"Fredoka","Arial Rounded MT Bold",system-ui,sans-serif;
+  --font-num:"DM Mono",ui-monospace,Menlo,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0E1617; --surface:#152223; --surface-2:#1D2E30; --fg:#E3EEEC; --muted:#93A9A7; --line:#2A3E40;
+    --accent:#4DBFAE; --on-accent:#04201B; --accent-soft:#1A3A37;
+    --good:#4CC38A; --bad:#F0766B; --warn:#E8A547;
+    color-scheme:dark;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0E1617; --surface:#152223; --surface-2:#1D2E30; --fg:#E3EEEC; --muted:#93A9A7; --line:#2A3E40;
+  --accent:#4DBFAE; --on-accent:#04201B; --accent-soft:#1A3A37;
+  --good:#4CC38A; --bad:#F0766B; --warn:#E8A547;
+  color-scheme:dark;
+}
+*,*::before,*::after{box-sizing:border-box}
+html,body{height:100%}
+html{box-sizing:border-box}
+body{background:var(--bg);color:var(--fg);font-family:var(--font-ui);font-size:15px;line-height:1.5;padding-inline:16px}
+button,input{font-family:inherit;font-size:inherit;color:inherit}
+button{cursor:pointer;-webkit-tap-highlight-color:transparent}
+button:focus-visible,input:focus-visible,summary:focus-visible,.filebtn:focus-within{outline:2px solid var(--accent);outline-offset:2px}
+h1,h2{margin:0;text-wrap:balance}
+h1{font-size:18px;font-weight:700;letter-spacing:.02em}
+h2{font-size:15px;font-weight:700}
+.muted{color:var(--muted)}
+.small{font-size:13px}
+.vh{position:absolute;width:1px;height:1px;opacity:0;overflow:hidden;clip:rect(0 0 0 0)}
+
+.app{height:100%;max-width:560px;margin-inline:auto;display:flex;flex-direction:column;gap:10px;padding-block:10px 12px}
+.top{display:flex;align-items:center;gap:10px}
+.logo{width:26px;height:31px;border-radius:7px;background:var(--tile);border:1px solid var(--tile-edge);border-bottom-width:3px;color:var(--c-r);font-family:var(--font-tile);font-weight:600;font-size:18px;display:grid;place-items:center}
+main{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain}
+.stack{display:flex;flex-direction:column;gap:10px;padding-bottom:6px}
+
+.btn{min-height:46px;padding:0 16px;border-radius:12px;border:1px solid var(--line);background:var(--surface);font-weight:500;display:inline-flex;align-items:center;justify-content:center;gap:8px;text-align:center}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.btn.small{min-height:38px;padding:0 12px;font-size:13px}
+.btn.big{min-height:56px;font-size:17px}
+.btn.danger{color:var(--bad)}
+.btn[disabled]{opacity:.45;cursor:default}
+.btn:active:not([disabled]){transform:translateY(1px)}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.row>.btn{flex:1 1 0;min-width:0}
+.row-between{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px;display:flex;flex-direction:column;gap:10px}
+.hint{margin:0;font-size:13px;color:var(--muted)}
+.err{margin:0;font-size:13px;color:var(--bad)}
+.empty{margin:0;color:var(--muted);font-size:13px}
+
+.seg{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:3px;background:var(--surface-2);border-radius:12px;padding:3px}
+.seg button{border:0;background:transparent;border-radius:9px;min-height:40px;padding:0 6px;font-weight:500;color:var(--muted)}
+.seg button[aria-pressed="true"]{background:var(--surface);color:var(--fg);font-weight:700;box-shadow:0 1px 2px rgba(0,0,0,.18)}
+
+.tabbar{display:grid;grid-template-columns:repeat(2,1fr);gap:4px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:4px}
+.tabbar button{border:0;background:transparent;min-height:46px;border-radius:12px;font-weight:500;color:var(--muted)}
+.tabbar button[aria-selected="true"]{background:var(--accent);color:var(--on-accent);font-weight:700}
+
+/* leftover tile pad */
+.pointsbox{display:flex;align-items:baseline;justify-content:space-between;gap:8px;border:1px solid var(--line);border-radius:12px;padding:8px 12px;background:var(--bg)}
+.pointsbox b{font-family:var(--font-num);font-size:30px;font-weight:500;font-variant-numeric:tabular-nums}
+
+/* score */
+.totals{display:grid;grid-template-columns:repeat(auto-fit,minmax(92px,1fr));gap:8px}
+.tot{border:1px solid var(--line);border-radius:12px;padding:8px 10px;display:flex;flex-direction:column;min-width:0}
+.tot.lead{border-color:var(--accent);background:var(--accent-soft)}
+.tn{font-size:13px;color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tot b{font-family:var(--font-num);font-size:24px;font-weight:500;font-variant-numeric:tabular-nums}
+.pos{color:var(--good)}.neg{color:var(--bad)}
+.rrow{display:grid;grid-template-columns:minmax(0,1fr) 44px 84px 52px;gap:6px;align-items:center;padding:4px 6px;border-radius:10px}
+.rrow.nocam{grid-template-columns:minmax(0,1fr) 92px 56px}
+.rrow.winr{background:var(--accent-soft)}
+.badge{font-style:normal;font-size:12px;font-weight:700;background:var(--accent);color:var(--on-accent);border-radius:6px;padding:1px 6px;margin-left:4px}
+.pickgrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(88px,1fr));gap:8px}
+.pick{min-height:46px;border-radius:12px;border:1px solid var(--line);background:var(--bg);font-weight:500;padding:0 8px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pick[aria-pressed="true"]{background:var(--accent);border-color:var(--accent);color:var(--on-accent);font-weight:700}
+.step{margin:0;font-size:14px;font-weight:700}
+.rn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-weight:500}
+.win{position:relative;display:block}
+.win span{display:grid;place-items:center;min-height:40px;border-radius:10px;border:1px solid var(--line);color:var(--muted);font-size:13px;font-weight:700}
+.win input:checked+span{background:var(--accent);border-color:var(--accent);color:var(--on-accent)}
+.win input:focus-visible+span{outline:2px solid var(--accent);outline-offset:2px}
+.cam{width:44px;height:44px;border-radius:10px;border:1px solid var(--line);background:var(--surface);display:grid;place-items:center;padding:0;color:var(--accent)}
+.cam{font-size:13px;font-weight:700;line-height:1}
+.padgrid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:6px}
+.num{position:relative;min-height:52px;border-radius:9px;background:var(--tile);border:1px solid var(--tile-edge);border-bottom-width:3px;font-family:var(--font-tile);font-weight:600;font-size:22px;color:var(--c-k);padding:0}
+.num:active{transform:translateY(1px);border-bottom-width:2px}
+.num.jk{grid-column:span 2;font-family:var(--font-ui);font-size:15px;color:var(--c-j)}
+.cnt{position:absolute;top:3px;right:4px;font-style:normal;font-family:var(--font-num);font-size:11px;font-weight:700;line-height:16px;min-width:16px;padding:0 4px;border-radius:9px;background:var(--accent);color:var(--on-accent)}
+input.pts,input.nameIn{min-height:44px;border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:0 10px;width:100%}
+input.pts{font-family:var(--font-num);font-size:18px;text-align:right;font-variant-numeric:tabular-nums}
+.dv{font-family:var(--font-num);text-align:right;font-variant-numeric:tabular-nums;color:var(--muted)}
+.tablewrap{overflow-x:auto}
+table{border-collapse:collapse;width:100%;min-width:300px;font-variant-numeric:tabular-nums}
+th,td{padding:7px 8px;text-align:right;border-bottom:1px solid var(--line);font-family:var(--font-num);font-size:14px}
+th.nm{font-family:var(--font-ui);font-size:12px;color:var(--muted);font-weight:500;max-width:70px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+th[scope="row"]{text-align:left;color:var(--muted);font-weight:400}
+td.w{background:var(--accent-soft)}
+details>summary{cursor:pointer;font-weight:700;min-height:28px}
+details[open]>summary{margin-bottom:10px}
+.names{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+
+/* timer */
+.tcard{align-items:center;gap:12px}
+.turnline{display:flex;gap:16px;font-size:14px;color:var(--muted)}
+.turnline b{color:var(--fg)}
+.ringwrap{position:relative;width:min(68vw,250px);aspect-ratio:1;max-width:100%;display:grid;place-items:center}
+.ring{position:absolute;inset:0;width:100%;height:100%}
+.rbg{fill:none;stroke:var(--surface-2);stroke-width:10}
+.rfg{fill:none;stroke:var(--accent);stroke-width:10;stroke-linecap:round}
+.ring.warn .rfg{stroke:var(--warn)}
+.ring.over .rfg{stroke:var(--bad)}
+.digits{font-family:var(--font-num);font-size:clamp(40px,14vw,60px);font-weight:500;font-variant-numeric:tabular-nums;line-height:1}
+.overtxt{position:absolute;bottom:24%;font-weight:700;color:var(--bad);font-size:15px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:8px;width:100%}
+.pchips{display:grid;grid-template-columns:repeat(auto-fit,minmax(104px,1fr));gap:8px}
+.pchip{border:1px solid var(--line);background:var(--bg);border-radius:12px;min-height:56px;padding:6px 10px;display:flex;flex-direction:column;align-items:flex-start;min-width:0;text-align:left}
+.pchip.on{border-color:var(--accent);background:var(--accent-soft)}
+.pchip .pn{font-weight:700;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.pchip .pt{font-family:var(--font-num);font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
+
+/* sheet + toast */
+.sheet-wrap{position:fixed;inset:0;z-index:20;display:flex;align-items:flex-end;justify-content:center;background:rgba(8,18,18,.55)}
+.sheet{width:100%;max-width:560px;max-height:90%;overflow-y:auto;background:var(--surface);border:1px solid var(--line);border-radius:18px 18px 0 0;padding:16px 16px calc(16px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:12px}
+.thumb{max-height:150px;border-radius:10px;object-fit:contain;align-self:center;background:var(--bg)}
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(env(safe-area-inset-bottom,0px) + 86px);z-index:30;background:var(--fg);color:var(--bg);padding:8px 14px;border-radius:999px;font-size:13px;max-width:calc(100% - 32px);text-align:center;pointer-events:none}
+</style>
+</head>
+<body>
+
+<div class="app">
+  <header class="top"><span class="logo" aria-hidden="true">7</span><h1>魔橋助手</h1></header>
+
+  <main id="main">
+    <section id="tab-setup" aria-label="設定玩家" hidden></section>
+    <section id="tab-score" aria-label="計分"></section>
+    <section id="tab-timer" aria-label="計時" hidden></section>
+  </main>
+
+  <nav class="tabbar" id="tabbar" role="tablist" aria-label="功能">
+    <button type="button" role="tab" data-tab="score">計分</button>
+    <button type="button" role="tab" data-tab="timer">計時</button>
+  </nav>
+</div>
+
+<div class="sheet-wrap" id="sheetWrap" hidden><div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="揀剩低嘅牌"></div></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+(function(){
+'use strict';
+var MAXP=6,MINP=2;
+var STORE='moqiao-assist-v1';
+var DEF_NAMES=['玩家1','玩家2','玩家3','玩家4','玩家5','玩家6'];
+
+function $(s){return document.querySelector(s)}
+function esc(s){return String(s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+
+/* ---------- state ---------- */
+function defaults(){return {tab:'score',ready:false,np:4,names:DEF_NAMES.slice(),rounds:[],timer:{sec:60,cur:0,used:[0,0,0,0,0,0],turn:1,sound:true}}}
+function load(){
+  var d=defaults();
+  try{
+    var r=JSON.parse(localStorage.getItem(STORE)||'null');
+    if(r&&typeof r==='object'){d=Object.assign(d,r);d.timer=Object.assign(defaults().timer,r.timer||{})}
+  }catch(e){}
+  delete d.hand;delete d.table;delete d.mode;
+  d.np=Math.min(MAXP,Math.max(MINP,parseInt(d.np,10)||4));
+  if(!Array.isArray(d.names))d.names=[];
+  for(var i=0;i<MAXP;i++)if(typeof d.names[i]!=='string'||!d.names[i].trim())d.names[i]=DEF_NAMES[i];
+  if(!Array.isArray(d.timer.used))d.timer.used=[];
+  while(d.timer.used.length<MAXP)d.timer.used.push(0);
+  if(!Array.isArray(d.rounds))d.rounds=[];
+  if(typeof d.ready!=='boolean')d.ready=d.rounds.length>0;
+  if(!(d.timer.cur>=0&&d.timer.cur<d.np))d.timer.cur=0;
+  if(['score','timer'].indexOf(d.tab)<0)d.tab='score';
+  return d;
+}
+var S=load();
+function save(){try{localStorage.setItem(STORE,JSON.stringify(S))}catch(e){}}
+
+/* ---------- helpers ---------- */
+function fmtSigned(d){return (d>0?'+':d<0?'−':'')+Math.abs(d)}
+function fmtTime(ms){var s=Math.max(0,Math.floor(ms/1000));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0')}
+var toastT;
+function toast(msg){var el=$('#toast');el.textContent=msg;el.hidden=false;clearTimeout(toastT);toastT=setTimeout(function(){el.hidden=true},2600)}
+/* ---------- score ---------- */
+var W={idx:-1,manual:false};
+var Pts=['','','','','',''];
+var detOpen=S.rounds.length===0;
+function totals(){var t=[];for(var i=0;i<S.np;i++)t.push(0);S.rounds.forEach(function(r){for(var i=0;i<S.np;i++)t[i]+=(r.d[i]||0)});return t}
+function calc(pts,w){var all=0;pts.forEach(function(p){all+=p});var others=all-pts[w];return pts.map(function(p,i){return i===w?others-p:-p})}
+function curNums(){var out=[];for(var i=0;i<S.np;i++){var x=String(Pts[i]||'').trim();out.push(/^\d{1,3}$/.test(x)?parseInt(x,10):null)}return out}
+function renderScore(){
+  var names=S.names.slice(0,S.np),t=totals(),lead=Math.max.apply(null,t);
+  var tHtml=names.map(function(nm,i){
+    return '<div class="tot'+(S.rounds.length&&t[i]===lead?' lead':'')+'"><span class="tn">'+esc(nm)+'</span><b class="'+(t[i]>0?'pos':t[i]<0?'neg':'')+'">'+(t[i]===0?'0':fmtSigned(t[i]))+'</b></div>';
+  }).join('');
+  var rows=names.map(function(nm,i){
+    var isW=W.idx===i;
+    return '<div class="rrow'+(isW?' winr':'')+'"><span class="rn">'+esc(nm)+(isW?' <em class="badge">贏</em>':'')+'</span>'+
+      (isW?'<span></span>':'<button type="button" class="cam" data-cam="'+i+'" aria-label="揀牌計 '+esc(nm)+' 嘅餘牌點數">揀牌</button>')+
+      '<input class="pts" id="pts'+i+'" data-i="'+i+'" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="0" aria-label="'+esc(nm)+' 餘牌點數" value="'+esc(isW?'0':(Pts[i]||''))+'"'+(isW?' readonly':'')+'><span class="dv" id="dv'+i+'">—</span></div>';
+  }).join('');
+  var hist=S.rounds.length?'<div class="tablewrap"><table><thead><tr><th scope="col" style="text-align:left">局</th>'+names.map(function(nm){return '<th class="nm" scope="col">'+esc(nm)+'</th>'}).join('')+'</tr></thead><tbody>'+
+    S.rounds.map(function(r,ri){
+      return '<tr><th scope="row">'+(ri+1)+'</th>'+names.map(function(_,i){
+        var d=r.d[i];if(d===undefined)return '<td>—</td>';
+        return '<td class="'+(i===r.w?'w ':'')+(d>0?'pos':d<0?'neg':'')+'">'+(d===0?'0':fmtSigned(d))+'</td>';
+      }).join('')+'</tr>';
+    }).reverse().join('')+'</tbody></table></div>':'<p class="empty">未有紀錄。每局完咗填低每人餘牌點數,按「記錄」。</p>';
+  var picks=names.map(function(nm,i){return '<button type="button" class="pick" data-win="'+i+'" aria-pressed="'+(W.idx===i)+'">'+esc(nm)+'</button>'}).join('');
+  $('#tab-score').innerHTML='<div class="stack">'+
+    '<div class="row-between"><span class="muted small">'+S.np+' 位玩家</span><button type="button" class="btn small" data-act="editPlayers">修改玩家</button></div>'+
+    '<section class="card"><div class="row-between"><h2>總分</h2><span class="muted small">共 '+S.rounds.length+' 局</span></div><div class="totals">'+tHtml+'</div></section>'+
+    '<section class="card"><h2>記錄一局</h2>'+
+      '<p class="step">第 1 步:邊位贏咗(出晒牌)?</p><div class="pickgrid">'+picks+'</div>'+
+      (W.idx>=0?
+        '<p class="step">第 2 步:輸家填自己嘅餘牌點數</p>'+
+        '<p class="hint">可以逐位交俾輸家自己填:直接打點數,或者撳「揀牌」逐塊揀剩低嘅牌(1 至 13、Joker),完成後自動計總點數。數字牌照面值,Joker 當 30 點。</p>'+
+        '<div id="rrows" style="display:grid;gap:6px">'+rows+'</div><p class="err" id="rerr"></p>'+
+        '<button type="button" class="btn primary" id="recBtn" data-act="rec" disabled>記錄</button>'+
+        '<p class="hint">贏家固定 0 點,唔使揀牌。贏家得分 = 所有輸家點數總和。</p>'
+      :'<p class="hint">先揀贏家,輸家先填餘牌。</p>')+
+    '</section>'+
+    '<section class="card"><h2>每局得失</h2>'+hist+'<div class="row"><button type="button" class="btn small" data-act="undoRound"'+(S.rounds.length?'':' disabled')+'>撤銷上一局</button><button type="button" class="btn small danger" data-act="clearRounds"'+(S.rounds.length?'':' disabled')+'>清除所有局</button></div></section>'+
+  '</div>';
+  updatePreview();
+}
+function updatePreview(){
+  var nums=curNums();
+  var ready=W.idx>=0&&nums.every(function(x){return x!==null});
+  var d=ready?calc(nums,W.idx):null;
+  var rb=$('#recBtn');if(rb)rb.disabled=!ready;
+  for(var i=0;i<S.np;i++){
+    var el=$('#dv'+i);if(!el)continue;
+    el.textContent=d?fmtSigned(d[i]):'—';
+    el.className='dv '+(d?(d[i]>0?'pos':d[i]<0?'neg':''):'');
+  }
+  var er=$('#rerr');if(er)er.textContent='';
+}
+function recordRound(){
+  var nums=curNums(),er=$('#rerr');
+  if(W.idx<0){if(er)er.textContent='請先揀邊位贏。';return}
+  if(nums.some(function(x){return x===null})){if(er)er.textContent='每位都要填點數(0 至 999)。';return}
+  S.rounds.push({p:nums,w:W.idx,d:calc(nums,W.idx)});
+  W={idx:-1,manual:false};Pts=['','','','','',''];save();renderScore();toast('已記錄第 '+S.rounds.length+' 局');
+}
+function pickWinner(i){
+  if(W.idx>=0&&W.idx!==i&&Pts[W.idx]==='0')Pts[W.idx]='';
+  W.idx=i;Pts[i]='0';renderScore();
+}
+var clearArmed=false,clearT;
+function onScoreClick(e){
+  var wb=e.target.closest('[data-win]');
+  if(wb){pickWinner(parseInt(wb.dataset.win,10));return}
+  var cam=e.target.closest('[data-cam]');
+  if(cam){openSheet(parseInt(cam.dataset.cam,10));return}
+  var b=e.target.closest('[data-act],[data-np]');if(!b||b.disabled)return;
+  if(b.dataset.np){
+    S.np=parseInt(b.dataset.np,10);if(S.timer.cur>=S.np)S.timer.cur=0;
+    W={idx:-1,manual:false};detOpen=true;save();renderScore(true);return;
+  }
+  var a=b.dataset.act;
+  if(a==='editPlayers')showSetup(true);
+  else if(a==='rec')recordRound();
+  else if(a==='undoRound'){S.rounds.pop();save();renderScore(true);toast('已撤銷上一局')}
+  else if(a==='clearRounds'){
+    if(!clearArmed){clearArmed=true;b.textContent='再按一次確認清除';clearTimeout(clearT);clearT=setTimeout(function(){clearArmed=false;renderScore(true)},3000)}
+    else{clearArmed=false;clearTimeout(clearT);S.rounds=[];save();renderScore(false);toast('已清除所有局')}
+  }
+}
+
+/* ---------- timer ---------- */
+var T={running:false,endAt:0,rem:S.timer.sec*1000,last:0,iv:null,beepSec:null,over:false};
+var ac=null,wl=null;
+function ensureAudio(){try{if(!ac)ac=new (window.AudioContext||window.webkitAudioContext)();if(ac.state==='suspended')ac.resume()}catch(e){}}
+function beep(f,d){
+  if(!S.timer.sound||!ac)return;
+  try{
+    var o=ac.createOscillator(),g=ac.createGain(),t=ac.currentTime;
+    o.type='sine';o.frequency.value=f;g.gain.value=.0001;o.connect(g);g.connect(ac.destination);
+    g.gain.exponentialRampToValueAtTime(.25,t+.01);g.gain.exponentialRampToValueAtTime(.0001,t+d);
+    o.start(t);o.stop(t+d+.03);
+  }catch(e){}
+}
+function vib(){try{if(navigator.vibrate)navigator.vibrate([200,100,200])}catch(e){}}
+function wake(){try{if(navigator.wakeLock&&!wl){navigator.wakeLock.request('screen').then(function(l){wl=l;l.addEventListener('release',function(){wl=null})}).catch(function(){wl=null})}}catch(e){wl=null}}
+function unwake(){try{if(wl)wl.release()}catch(e){}wl=null}
+document.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&T.running)wake()});
+
+function startRun(){
+  ensureAudio();
+  if(T.iv)clearInterval(T.iv);
+  if(T.over||T.rem<=0){T.rem=S.timer.sec*1000;T.beepSec=null}
+  T.over=false;T.last=Date.now();T.endAt=T.last+T.rem;T.running=true;
+  T.iv=setInterval(tick,200);wake();updateTimerUI();
+}
+function stopRun(){if(T.iv)clearInterval(T.iv);T.iv=null;T.running=false;unwake();save()}
+function tick(){
+  var now=Date.now(),cur=S.timer.cur;
+  S.timer.used[cur]+=Math.max(0,now-T.last);T.last=now;
+  T.rem=Math.max(0,T.endAt-now);
+  var s=Math.ceil(T.rem/1000);
+  if(s!==T.beepSec){T.beepSec=s;if(s>0&&s<=5)beep(880,.09)}
+  if(T.rem<=0){stopRun();T.over=true;beep(520,.8);vib()}
+  updateTimerUI();
+}
+function nextPlayer(){
+  var t=S.timer;
+  t.cur=(t.cur+1)%S.np;if(t.cur===0)t.turn++;
+  T.rem=t.sec*1000;T.over=false;T.beepSec=null;
+  save();startRun();renderTimer();
+}
+function updateTimerUI(){
+  var dg=$('#digits');if(!dg)return;
+  var t=S.timer,total=t.sec*1000,secs=Math.ceil(T.rem/1000);
+  dg.textContent=Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
+  var C=2*Math.PI*90,rfg=$('#rfg');
+  rfg.style.strokeDasharray=String(C);rfg.style.strokeDashoffset=String(C*(1-Math.min(1,T.rem/total)));
+  $('#ring').setAttribute('class','ring'+(T.over?' over':(secs<=10&&T.rem>0?' warn':'')));
+  $('#overTxt').hidden=!T.over;
+  $('#tgBtn').textContent=T.running?'暫停':(T.over?'再計一次':(T.rem<total?'繼續':'開始'));
+  document.querySelectorAll('[data-pt]').forEach(function(el){el.textContent=fmtTime(t.used[parseInt(el.dataset.pt,10)])});
+}
+function renderTimer(){
+  var t=S.timer,names=S.names.slice(0,S.np);
+  $('#tab-timer').innerHTML='<div class="stack">'+
+    '<section class="card tcard"><div class="turnline"><span>第 <b>'+t.turn+'</b> 輪</span><span>輪到 <b>'+esc(names[t.cur]||'')+'</b></span></div>'+
+    '<div class="ringwrap"><svg class="ring" id="ring" viewBox="0 0 200 200" aria-hidden="true"><circle class="rbg" cx="100" cy="100" r="90"/><circle class="rfg" id="rfg" cx="100" cy="100" r="90" transform="rotate(-90 100 100)"/></svg><div class="digits" id="digits" role="timer">1:00</div><div class="overtxt" id="overTxt" hidden>時間到</div></div>'+
+    '<div class="row2"><button type="button" class="btn primary big" id="tgBtn">開始</button><button type="button" class="btn big" id="nxBtn">下一位</button></div></section>'+
+    '<section class="card"><h2>輪到邊位</h2><div class="pchips">'+names.map(function(nm,i){return '<button type="button" class="pchip'+(i===t.cur?' on':'')+'" data-p="'+i+'"><span class="pn">'+esc(nm)+'</span><span class="pt" data-pt="'+i+'">0:00</span></button>'}).join('')+'</div><p class="hint">細字係每位累計用時。撳名可以直接跳去嗰位。玩家姓名喺「計分」分頁改。</p></section>'+
+    '<section class="card"><h2>每回合時間</h2><div class="seg" id="secSeg" role="group" aria-label="每回合秒數">'+[30,60,90,120].map(function(s){return '<button type="button" data-sec="'+s+'" aria-pressed="'+(t.sec===s)+'">'+s+' 秒</button>'}).join('')+'</div></section>'+
+    '<div class="row2"><button type="button" class="btn small" id="sndBtn">提示音:'+(t.sound?'開':'關')+'</button><button type="button" class="btn small danger" id="rstBtn">重設計時</button></div>'+
+  '</div>';
+  updateTimerUI();
+}
+var rstArmed=false,rstT;
+function resetTimer(){
+  stopRun();var t=S.timer;t.used=[0,0,0,0,0,0];t.cur=0;t.turn=1;T.rem=t.sec*1000;T.over=false;T.beepSec=null;save();
+}
+function onTimerClick(e){
+  var b=e.target.closest('button');if(!b)return;
+  var t=S.timer;
+  if(b.id==='tgBtn'){if(T.running){stopRun();updateTimerUI()}else startRun()}
+  else if(b.id==='nxBtn')nextPlayer();
+  else if(b.dataset.p!==undefined){
+    t.cur=parseInt(b.dataset.p,10);T.rem=t.sec*1000;T.over=false;T.beepSec=null;
+    if(T.running)startRun();save();renderTimer();
+  }else if(b.dataset.sec){
+    t.sec=parseInt(b.dataset.sec,10);T.rem=t.sec*1000;T.over=false;T.beepSec=null;
+    if(T.running)startRun();save();renderTimer();
+  }else if(b.id==='sndBtn'){t.sound=!t.sound;if(t.sound)ensureAudio();save();b.textContent='提示音:'+(t.sound?'開':'關')}
+  else if(b.id==='rstBtn'){
+    if(!rstArmed){rstArmed=true;b.textContent='再按一次確認';clearTimeout(rstT);rstT=setTimeout(function(){rstArmed=false;b.textContent='重設計時'},3000)}
+    else{rstArmed=false;clearTimeout(rstT);resetTimer();renderTimer();toast('計時已重設')}
+  }
+}
+
+/* ---------- leftover tile pad: tap each tile still in hand, points add up ---------- */
+var P={open:false,player:0,stack:[]};
+function tileVal(k){return k==='J'?30:parseInt(k,10)}
+function openSheet(i){P={open:true,player:i,stack:[]};$('#sheetWrap').hidden=false;renderSheet()}
+function closeSheet(){P.open=false;$('#sheetWrap').hidden=true}
+function renderSheet(){
+  if(!P.open)return;
+  var nm=esc(S.names[P.player]||DEF_NAMES[P.player]);
+  var cnt={},total=0,pad='',n;
+  P.stack.forEach(function(k){cnt[k]=(cnt[k]||0)+1;total+=tileVal(k)});
+  for(n=1;n<=13;n++)pad+='<button type="button" class="num" data-n="'+n+'" aria-label="'+n+(cnt[n]?',已揀 '+cnt[n]+' 塊':'')+'">'+n+(cnt[n]?'<i class="cnt">'+cnt[n]+'</i>':'')+'</button>';
+  pad+='<button type="button" class="num jk" data-n="J" aria-label="Joker 30 點">Joker 30'+(cnt.J?'<i class="cnt">'+cnt.J+'</i>':'')+'</button>';
+  var has=P.stack.length?'':' disabled';
+  $('#sheet').innerHTML='<div class="row-between"><h2>'+nm+' 嘅餘牌</h2><button type="button" class="btn small" data-sact="close">關閉</button></div>'+
+    '<p class="hint">逐塊撳佢剩低嘅牌,只睇數字,唔使分顏色。撳錯可以撤銷。</p><div class="padgrid">'+pad+'</div>'+
+    '<div class="pointsbox"><span class="muted">'+P.stack.length+' 塊 · 餘牌點數</span><b>'+total+'</b></div>'+
+    '<div class="row"><button type="button" class="btn" data-sact="padundo"'+has+'>撤銷一塊</button><button type="button" class="btn" data-sact="padclear"'+has+'>清除</button><button type="button" class="btn primary" data-sact="padapply"'+has+'>完成,填入 '+total+' 點</button></div>';
+}
+function applyPoints(pts){
+  var i=P.player,nm=S.names[i];
+  closeSheet();
+  Pts[i]=String(pts);
+  var inp=$('#pts'+i);
+  if(inp){inp.value=String(pts);updatePreview();toast('已填入 '+nm+':'+pts+' 點')}
+}
+function onSheetClick(e){
+  if(e.target.id==='sheetWrap'){closeSheet();return}
+  var nb=e.target.closest('[data-n]');
+  if(nb){P.stack.push(nb.dataset.n);renderSheet();return}
+  var b=e.target.closest('[data-sact]');if(!b||b.disabled)return;
+  var a=b.dataset.sact;
+  if(a==='close')closeSheet();
+  else if(a==='padundo'){P.stack.pop();renderSheet()}
+  else if(a==='padclear'){P.stack=[];renderSheet()}
+  else if(a==='padapply'){var tt=0;P.stack.forEach(function(k){tt+=tileVal(k)});applyPoints(tt)}
+}
+
+/* ---------- player setup: first screen, also reachable from the score tab ---------- */
+var setupEdit=false;
+function showSetup(fromGame){
+  setupEdit=!!fromGame;
+  $('#tab-score').hidden=true;$('#tab-timer').hidden=true;
+  $('#tab-setup').hidden=false;$('#tabbar').hidden=true;
+  renderSetup();$('#main').scrollTop=0;
+}
+function renderSetup(){
+  var names=S.names.slice(0,S.np);
+  $('#tab-setup').innerHTML='<div class="stack"><section class="card"><h2>'+(setupEdit?'修改玩家':'開始之前,先設定玩家')+'</h2>'+
+    '<p class="hint">揀人數(2 至 6 位),再填每位玩家姓名。計分同計時都會用呢份名單。</p>'+
+    '<div class="seg" id="npSeg" role="group" aria-label="人數">'+[2,3,4,5,6].map(function(n){return '<button type="button" data-np="'+n+'" aria-pressed="'+(S.np===n)+'">'+n+' 人</button>'}).join('')+'</div>'+
+    '<div class="names">'+names.map(function(nm,i){return '<input class="nameIn" data-i="'+i+'" maxlength="10" value="'+esc(nm)+'" placeholder="'+DEF_NAMES[i]+'" aria-label="玩家 '+(i+1)+' 姓名">'}).join('')+'</div>'+
+    (setupEdit&&S.rounds.length?'<p class="hint">已記錄嘅局唔會受影響。</p>':'')+
+    '<button type="button" class="btn primary big" data-sup="go">'+(setupEdit?'完成':'開始計分')+'</button></section></div>';
+}
+function finishSetup(){
+  for(var i=0;i<MAXP;i++){var v=String(S.names[i]||'').trim();S.names[i]=v||DEF_NAMES[i]}
+  if(S.timer.cur>=S.np)S.timer.cur=0;
+  W={idx:-1,manual:false};S.ready=true;save();
+  $('#tab-setup').hidden=true;setTab(S.tab);
+}
+var su=$('#tab-setup');
+su.addEventListener('click',function(e){
+  var b=e.target.closest('[data-np],[data-sup]');if(!b)return;
+  if(b.dataset.np){S.np=parseInt(b.dataset.np,10);save();renderSetup()}
+  else finishSetup();
+});
+su.addEventListener('input',function(e){
+  var t=e.target;
+  if(t.classList.contains('nameIn')){S.names[parseInt(t.dataset.i,10)]=t.value;save()}
+});
+
+/* ---------- tabs + wiring ---------- */
+function setTab(name){
+  $('#tab-setup').hidden=true;$('#tabbar').hidden=false;
+  S.tab=name;save();
+  ['score','timer'].forEach(function(t){$('#tab-'+t).hidden=(t!==name)});
+  document.querySelectorAll('.tabbar button').forEach(function(b){
+    var on=b.dataset.tab===name;b.setAttribute('aria-selected',String(on));b.tabIndex=on?0:-1;
+  });
+  if(name==='score')renderScore(true);else renderTimer();
+  $('#main').scrollTop=0;
+}
+document.querySelectorAll('.tabbar button').forEach(function(b){b.addEventListener('click',function(){setTab(b.dataset.tab)})});
+$('#sheetWrap').addEventListener('click',onSheetClick);
+document.addEventListener('keydown',function(e){if(e.key==='Escape'&&P.open)closeSheet()});
+var sc=$('#tab-score');
+sc.addEventListener('click',onScoreClick);
+sc.addEventListener('input',function(e){
+  if(e.target.classList.contains('pts')){
+    e.target.value=e.target.value.replace(/\D/g,'').slice(0,3);
+    Pts[parseInt(e.target.dataset.i,10)]=e.target.value;updatePreview();
+  }
+});
+sc.addEventListener('change',function(e){
+  var t=e.target;
+  if(t.classList.contains('nameIn')){
+    var i=parseInt(t.dataset.i,10);S.names[i]=t.value.trim()||DEF_NAMES[i];save();renderScore(true);
+  }
+});
+sc.addEventListener('toggle',function(e){if(e.target.tagName==='DETAILS')detOpen=e.target.open},true);
+$('#tab-timer').addEventListener('click',onTimerClick);
+
+if(S.ready)setTab(S.tab);else showSetup(false);
+})();
+</script>
+</body>
+</html>

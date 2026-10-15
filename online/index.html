@@ -92,7 +92,6 @@ button { cursor: pointer; }
 .assist ul { margin: 0; padding-left: 18px; display: flex; flex-direction: column; gap: 2px; }
 .assist p { margin: 0; line-height: 1.5; }
 .assist .muted { color: var(--muted); }
-.assist .ai b { color: #0f7b4f; margin-right: 4px; }
 .assist .ar2 { display: flex; gap: 6px; justify-content: flex-end; }
 .tile.fresh::before { content: '新'; position: absolute; top: -9px; right: -6px; z-index: 3; background: var(--hl); color: var(--ink); font: 700 10px/1 'Noto Sans TC', sans-serif; padding: 3px 5px; border-radius: 99px; box-shadow: 0 1px 2px rgba(0, 0, 0, 0.25); }
 .tile.dragging { opacity: 0.25; }
@@ -1409,66 +1408,12 @@ if (typeof module !== 'undefined') {
     if (!S.melded) { const m = findBestMelds(S.hand, true, true); miss = Math.max(0, ini - m.points); }
     return { ok: false, miss };
   }
-  /* ---------- AI(網頁版用 Gemini,金鑰只存在這台裝置的瀏覽器) ---------- */
-  const GEMINI_MODELS = ['gemini-3-flash-preview', 'gemini-2.5-flash'];
-  const aiKey = () => (LS.get('mk-gemini-key') || '').trim();
-  const aiModel = () => (LS.get('mk-gemini-model') || '').trim();
-  async function geminiCall(prompt, key, models) {
-    let lastErr = null;
-    for (const m of models) {
-      try {
-        const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/' + encodeURIComponent(m) + ':generateContent', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', 'x-goog-api-key': key },
-          body: JSON.stringify({ contents: [{ role: 'user', parts: [{ text: prompt }] }], generationConfig: { temperature: 0.4, maxOutputTokens: 2048 } }),
-        });
-        const j = await res.json().catch(() => ({}));
-        if (!res.ok) {
-          const msg = (j && j.error && j.error.message) || ('HTTP ' + res.status);
-          lastErr = new Error(msg);
-          if (res.status === 404 || (res.status === 400 && /model/i.test(msg) && !/API key/i.test(msg))) continue; // 換下一個模型
-          throw lastErr;
-        }
-        const parts = j && j.candidates && j.candidates[0] && j.candidates[0].content && j.candidates[0].content.parts;
-        const text = (parts || []).map((x) => x.text || '').join('').trim();
-        if (!text) throw new Error('AI 沒有回覆內容');
-        return text;
-      } catch (e) { lastErr = e; if (!/model/i.test(String(e && e.message))) throw e; }
-    }
-    throw lastErr || new Error('AI 無法使用');
-  }
-  /* 回傳文字;沒有可用的 AI 時回傳 null;出錯時丟出例外 */
-  async function callAI(prompt) {
-    if (PLATFORM === 'web') {
-      const key = aiKey();
-      if (!key) return null;
-      const custom = aiModel();
-      return geminiCall(prompt, key, custom ? [custom] : GEMINI_MODELS);
-    }
-    const sample = S.sampleNS === undefined ? (window.claude && window.claude.use ? await window.claude.use('sample') : null) : S.sampleNS;
-    S.sampleNS = sample || null;
-    if (!sample) return null;
-    const out = await sample(prompt, { modelTier: 'quick', cache: false });
-    return (out && out.text || '').trim();
-  }
-  const aiReady = () => (PLATFORM === 'web' ? !!aiKey() : S.sampleNS !== null);
-  async function askAI(sug) {
-    const still = () => S.assist && S.assist.sug === sug;
-    try {
-      const facts = sug.ok
-        ? `建議出 ${sug.placed.length} 張手牌(${sug.placed.map(tileName).join('、')})。新牌組:${sug.made.join(';')}。${sug.broken.length ? '需要拆開或改動的桌面牌組:' + sug.broken.join(';') + '。' : ''}${S.melded ? '' : '這是首次出牌,共 ' + sug.pts + ' 點。'}出牌後手牌剩 ${sug.left} 張。`
-        : `目前沒有可以合法出的牌。${sug.miss != null && sug.miss > 0 ? '首次出牌還差 ' + sug.miss + ' 點。' : ''}建議抽牌。`;
-      const text = await callAI('你是魔橋(Rummikub)的教練。程式已經算出下面的建議,請用繁體中文、口語化,用兩三句話向玩家解釋為什麼這樣出,以及有什麼要留意。不要改動建議內容,不要加標題或列表。\n\n' + facts);
-      if (still()) { S.assist.ai = text || null; S.assist.aiBusy = false; render(); }
-    } catch (e) { if (still()) { S.assist.aiBusy = false; S.assist.aiErr = String((e && e.message) || e).slice(0, 140); render(); } }
-  }
   function doAssist() {
     if (!isMyTurn() || !S.work) return;
     const sug = planSuggestion();
-    S.assist = { sug, ai: null, aiBusy: aiReady(), aiErr: null };
+    S.assist = { sug };
     S.hint = sug.ok ? new Set(sug.placed) : null;
     render();
-    askAI(sug);
   }
   function applyAssist() {
     const a = S.assist;
@@ -1481,11 +1426,10 @@ if (typeof module !== 'undefined') {
     const a = S.assist;
     if (!a || !isMyTurn()) return '';
     const g = a.sug;
-    const ai = a.aiBusy ? '<p class="ai muted">AI 正在整理說明…</p>' : a.ai ? `<p class="ai"><b>AI 說明</b> ${esc(a.ai)}</p>` : a.aiErr ? `<p class="ai muted">AI 暫時用不到:${esc(a.aiErr)} <button class="btn small" data-a="aiSettings">AI 設定</button></p>` : (PLATFORM === 'web' && !aiKey()) ? '<p class="ai muted">想要 AI 用口語解釋建議?<button class="btn small" data-a="aiSettings">填入 Gemini 金鑰</button></p>' : '';
     if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議:可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
-      <ul>${g.made.map((x) => `<li>新組 ${esc(x)}</li>`).join('')}${g.broken.map((x) => `<li class="muted">拆開 ${esc(x)}</li>`).join('')}</ul>${ai}
+      <ul>${g.made.map((x) => `<li>新組 ${esc(x)}</li>`).join('')}${g.broken.map((x) => `<li class="muted">拆開 ${esc(x)}</li>`).join('')}</ul>
       <div class="ar2"><button class="btn small primary" data-a="assistApply">照建議擺牌</button><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
-    return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p>${ai}<div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
+    return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
   }
   function resetWork() {
     if (!isMyTurn()) return;
@@ -1554,7 +1498,7 @@ if (typeof module !== 'undefined') {
           ${S.busy ? `<p class="hint" style="margin-top:8px">${esc(S.busy)}</p>` : online ? `<p class="hint warn" style="margin-top:8px">${online}</p>` : `<p class="hint" style="margin-top:8px">${PLATFORM === 'web' ? '建立後把 4 位代碼和這個網址傳給朋友,對方開啟網址輸入代碼就能加入。房主要保持此頁開著。' : '建立後把 4 位代碼告訴朋友。朋友需要用你分享的連結開啟本頁,並具備「可互動」(Contributor)以上的權限。'}</p>`}
         </div>
         ${saved ? `<hr class="sep"><div class="row"><span class="hint grow">上次的${saved.code ? '房間 ' + esc(saved.code) : '單人牌局'}還在,可以繼續。</span><button class="btn" data-a="resume"${dis}>繼續牌局</button></div>` : ''}
-        <hr class="sep"><div class="row"><button class="btn ghost small" data-a="rules">遊戲規則</button>${PLATFORM === 'web' ? '<button class="btn ghost small" data-a="aiSettings">AI 設定</button>' : ''}</div>
+        <hr class="sep"><div class="row"><button class="btn ghost small" data-a="rules">遊戲規則</button></div>
       </div></div>`;
   }
 
@@ -1694,17 +1638,6 @@ if (typeof module !== 'undefined') {
     </div></div>`;
   }
 
-  function aiHTML() {
-    const has = !!aiKey();
-    return `<div class="overlay" data-a="closeRules"><div class="card" data-keep="1">
-      <h2>AI 設定</h2>
-      <p>「智能建議」會用 Google Gemini 把建議解釋成幾句話。金鑰只會存在這台裝置的瀏覽器裡,不會上傳到網站,也不會傳給其他玩家;請求直接從你的瀏覽器送到 Google。</p>
-      <div><h3>Gemini API 金鑰</h3><input id="inKey" class="field" type="password" autocomplete="off" placeholder="${has ? '已儲存(留空表示不改)' : '貼上金鑰'}"></div>
-      <div><h3>模型(可留空)</h3><input id="inModel" class="field" autocomplete="off" placeholder="${esc(GEMINI_MODELS[0])}" value="${esc(aiModel())}"></div>
-      ${S.aiTest ? `<p class="${S.aiTest.ok ? 'ok' : 'warn'}">${esc(S.aiTest.t)}</p>` : ''}
-      <div class="row"><button class="btn primary" data-a="aiSave">儲存</button><button class="btn" data-a="aiTest">測試連線</button><span class="grow"></span><button class="btn danger" data-a="aiClear"${has ? '' : ' disabled'}>清除金鑰</button><button class="btn" data-a="closeRules">關閉</button></div>
-    </div></div>`;
-  }
   function rulesHTML() {
     return `<div class="overlay" data-a="closeRules"><div class="card" data-keep="1">
       <h2>魔橋規則</h2>
@@ -1713,7 +1646,7 @@ if (typeof module !== 'undefined') {
       <div><h3>回合</h3><ul><li>開局每人 14 張。第一次出牌,打出的新牌組點數合計要有 30 點以上,而且只能用自己的牌,不能動桌面上的牌。</li><li>開局之後,可以接牌、拆開、重組桌面上所有牌組,只要回合結束時每一組都合規則。桌面上的牌不能收回手牌。</li><li>打不出牌時抽 1 張,回合結束。</li></ul></div>
       <div><h3>百搭牌</h3><p>可以代替任何顏色和數字。桌面上的百搭牌可以用手上正確的牌換出來,換出的百搭牌要在同一回合內用到別的牌組。</p></div>
       <div><h3>計分</h3><p>勝者得到其他人手牌點數的總和,其他人各扣自己的剩餘點數,百搭牌剩在手上算 30 點。牌堆抽完且沒有人能出牌時,剩餘點數最少者獲勝。</p></div>
-      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,綠色實線是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議:輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。若可以連線,AI 會用幾句話解釋建議。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
+      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,綠色實線是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議:輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
       <div class="row"><span class="grow"></span><button class="btn primary" data-a="closeRules">知道了</button></div></div></div>`;
   }
 
@@ -1722,12 +1655,12 @@ if (typeof module !== 'undefined') {
     if (!app) return;
     const keep = { board: ($('#board') || {}).scrollTop || 0, rack: ($('#rack') || {}).scrollTop || 0, lobby: ($('.lobby') || {}).scrollTop || 0 };
     const vals = {};
-    for (const id of ['inName', 'inCode', 'chatIn', 'inKey', 'inModel']) { const e = document.getElementById(id); if (e) vals[id] = e.value; }
+    for (const id of ['inName', 'inCode', 'chatIn']) { const e = document.getElementById(id); if (e) vals[id] = e.value; }
     const ae = document.activeElement;
     const aid = ae && ae.id && vals[ae.id] !== undefined ? ae.id : null;
     const pos = aid ? ae.selectionStart : 0;
-    const mAi = S.modal === 'ai' ? aiHTML() : '', mRules = S.modal === 'rules' ? rulesHTML() : '';
-    app.innerHTML = !S.pub ? lobbyHTML() + mRules + mAi : S.pub.phase === 'wait' ? waitHTML() + mRules + mAi : gameHTML() + mAi;
+    const mRules = S.modal === 'rules' ? rulesHTML() : '';
+    app.innerHTML = !S.pub ? lobbyHTML() + mRules : S.pub.phase === 'wait' ? waitHTML() + mRules : gameHTML();
     for (const id in vals) { const e = document.getElementById(id); if (e) e.value = vals[id]; }
     if (aid) { const e = document.getElementById(aid); if (e) { e.focus(); try { e.setSelectionRange(pos, pos); } catch (er) {} } }
     const b = $('#board'), r = $('#rack'), l = $('.lobby'), f = $('#feed');
@@ -1800,21 +1733,6 @@ if (typeof module !== 'undefined') {
       case 'join': joinRoom(($('#inCode') || {}).value); break;
       case 'resume': resumeHost(); break;
       case 'rules': S.modal = 'rules'; render(); break;
-      case 'aiSettings': S.modal = 'ai'; S.aiTest = null; render(); break;
-      case 'aiSave': {
-        const k = (($('#inKey') || {}).value || '').trim(), m = (($('#inModel') || {}).value || '').trim();
-        if (k) LS.set('mk-gemini-key', k);
-        if (m) LS.set('mk-gemini-model', m); else LS.del('mk-gemini-model');
-        S.aiTest = { ok: true, t: k || aiKey() ? '已儲存。' : '已儲存(還沒有金鑰,不會使用 AI)。' }; render(); break;
-      }
-      case 'aiClear': LS.del('mk-gemini-key'); S.aiTest = { ok: true, t: '已清除金鑰。' }; render(); break;
-      case 'aiTest': {
-        const k = (($('#inKey') || {}).value || '').trim() || aiKey(), m = (($('#inModel') || {}).value || '').trim();
-        if (!k) { S.aiTest = { ok: false, t: '請先貼上金鑰。' }; render(); break; }
-        S.aiTest = { ok: true, t: '測試中…' }; render();
-        geminiCall('請只回覆「OK」兩個字。', k, m ? [m] : GEMINI_MODELS).then(() => { S.aiTest = { ok: true, t: '連線成功。' }; render(); }, (e) => { S.aiTest = { ok: false, t: '連線失敗:' + String((e && e.message) || e).slice(0, 120) }; render(); });
-        break;
-      }
       case 'closeRules': S.modal = null; render(); break;
       case 'copy': try { navigator.clipboard.writeText(S.code).then(() => say('已複製房間代碼')).catch(() => say('請手動記下代碼:' + S.code)); } catch (e) { say('請手動記下代碼:' + S.code); } break;
       case 'addbot': if (S.isHost) { addBot(); hostBroadcast(); } break;

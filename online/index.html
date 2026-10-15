@@ -948,7 +948,7 @@ if (typeof module !== 'undefined') {
     roomNS: undefined, room: null, code: null, isHost: false, busy: '',
     G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [],
     work: null, sel: null, msel: [], fresh: new Set(), prevBoard: null, assist: null, hint: null, draft: null, turnStart: Date.now(),
-    feed: [], lastK: 0, soloBots: 2, panel: false, modal: null, hideResult: false,
+    feed: [], lastK: 0, soloBots: 2, soloTimer: 0, panel: false, modal: null, hideResult: false,
     welcomed: false, hostGone: false, drawArmed: false, unsubs: [],
   };
 
@@ -1248,6 +1248,7 @@ if (typeof module !== 'undefined') {
     S.isHost = true; S.code = null; S.room = null;
     newLobby();
     for (let i = 0; i < S.soloBots; i++) addBot();
+    S.G.settings.timer = S.soloTimer;
     startGame();
   }
   function resumeHost() {
@@ -1488,7 +1489,9 @@ if (typeof module !== 'undefined') {
         <div><h2>單人對電腦</h2>
           <div class="row"><span class="hint">電腦對手</span>
             <div class="seg">${[1, 2, 3].map((n) => `<button data-a="bots" data-n="${n}" class="${S.soloBots === n ? 'on' : ''}">${n}</button>`).join('')}</div>
-            <span class="grow"></span><button class="btn primary" data-a="solo"${dis}>開始遊戲</button></div></div>
+            <span class="grow"></span><button class="btn primary" data-a="solo"${dis}>開始遊戲</button></div>
+          <div class="row" style="margin-top:8px"><span class="hint">每回合計時</span>
+            <div class="seg">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<button data-a="soloTimer" data-n="${v}" class="${S.soloTimer === v ? 'on' : ''}">${l}</button>`).join('')}</div></div></div>
         <hr class="sep">
         <div><h2>線上對戰</h2>
           <div class="row"><button class="btn primary" data-a="create"${dOn}>建立房間</button>
@@ -1513,8 +1516,8 @@ if (typeof module !== 'undefined') {
       <div class="row"><button class="btn small" data-a="addbot"${n >= 4 ? ' disabled' : ''}>加入電腦</button>
         <button class="btn small" data-a="rmbot"${pub.players.some((p) => p.bot) ? '' : ' disabled'}>移除電腦</button>
         <span class="grow"></span>
-        <label class="hint" for="selTimer">每回合</label>
-        <select id="selTimer" class="field" data-a="timer">${[[0, '不限時'], [60, '60 秒'], [90, '90 秒'], [120, '120 秒'], [180, '180 秒']].map(([v, l]) => `<option value="${v}"${pub.settings.timer === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+        <label class="hint" for="selTimer">每回合計時</label>
+        <select id="selTimer" class="field" data-a="timer">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<option value="${v}"${pub.settings.timer === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
       <button class="btn primary" data-a="start"${n < 2 ? ' disabled' : ''}>開始遊戲(${n} 人)</button>
       ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
     return `<div class="lobby"><div class="hero"><h1>魔橋</h1></div>
@@ -1727,6 +1730,7 @@ if (typeof module !== 'undefined') {
   });
   function doAction(k, el) {
     switch (k) {
+      case 'soloTimer': S.soloTimer = +el.dataset.n; render(); break;
       case 'bots': S.soloBots = +el.dataset.n; render(); break;
       case 'solo': startSolo(); break;
       case 'create': createRoom(); break;

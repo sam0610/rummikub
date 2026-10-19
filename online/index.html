@@ -341,6 +341,11 @@ select.field { width: auto; }
 .invbanner { background: var(--hl); border-radius: 12px; padding: 10px 14px; }
 .invbanner .hint { color: var(--ink); }
 @media (max-width: 420px) { .invite { flex-direction: column; text-align: center; } .invite .ilink { align-items: center; } }
+.replaybtn { min-height: 0; padding: 0.15em 0.7em; border-color: #1f9d6b; color: #0f7b4f; font-weight: 700; white-space: nowrap; }
+.replaying .board, .replaying .rack { pointer-events: none; }
+.replaying .set.chg { border-color: var(--line); box-shadow: none; }
+.replaying .tile.moved::after { display: none; }
+.replaying .tile.recent { transform: none; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 10px rgba(21, 26, 36, 0.14); }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -3643,7 +3648,7 @@ if (typeof module !== 'undefined') {
   function resetLocal() {
     clearInterval(S.helloTimer); clearTimeout(S.joinTimeout); clearTimeout(S.goneTimer); clearTimeout(S.botTimer); S.botTimer = null;
     S.unsubs.forEach((u) => { try { u(); } catch (e) {} }); S.unsubs = [];
-    Object.assign(S, { room: null, code: null, isHost: false, G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [], work: null, sel: null, msel: [], fresh: new Set(), prevBoard: null, assist: null, hint: null, draft: null, feed: [], lastK: 0, unread: 0, panel: false, modal: null, hideResult: false, welcomed: false, hostGone: false, busy: '' });
+    Object.assign(S, { room: null, code: null, isHost: false, G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [], work: null, sel: null, msel: [], fresh: new Set(), prevBoard: null, replay: null, assist: null, hint: null, draft: null, feed: [], lastK: 0, unread: 0, panel: false, modal: null, hideResult: false, welcomed: false, hostGone: false, busy: '' });
   }
   function localLeave() { const room = S.room; resetLocal(); if (room) room.leave().catch(() => {}); render(); }
   async function leave() {
@@ -3663,7 +3668,7 @@ if (typeof module !== 'undefined') {
     if (pub.phase === 'play') {
       if (!prev || prev.phase !== 'play' || prev.turnNo !== pub.turnNo) {
         S.prevBoard = prev && prev.phase === 'play' ? prev.board : null;
-        S.turnStart = Date.now(); S.draft = null; S.sel = null; S.msel = []; S.assist = null; S.hint = null; S.drawArmed = false;
+        S.turnStart = Date.now(); S.draft = null; S.sel = null; S.msel = []; S.assist = null; S.hint = null; S.drawArmed = false; S.replay = null;
         S.work = isMyTurn() ? { board: pub.board.map((s) => s.slice()), placed: new Set() } : null;
       }
     } else { S.work = null; S.sel = null; S.msel = []; if (pub.phase === 'end' && (!prev || prev.phase !== 'end')) S.hideResult = false; }
@@ -3676,10 +3681,38 @@ if (typeof module !== 'undefined') {
 
   /* ---------- 擺牌操作 ---------- */
   const viewBoard = () => {
+    if (S.replay && S.prevBoard) return S.replay.phase === 0 ? S.prevBoard : S.pub.board;
     if (isMyTurn() && S.work) return S.work.board;
     if (S.draft && S.pub && S.draft.n === S.pub.turnNo) return S.draft.board;
     return S.pub.board;
   };
+  /* ---------- 重播上手玩家的操作:先顯示出牌前的桌面,再讓牌滑動/飛入到現在的位置 ---------- */
+  function startReplay() {
+    if (S.replay || !S.prevBoard || !S.pub) return;
+    const tok = ++S.replayTok || (S.replayTok = 1);
+    S.replay = { phase: 0, tok };
+    render();
+    setTimeout(() => {
+      if (!S.replay || S.replay.tok !== tok) return;
+      const before = new Map();
+      document.querySelectorAll('#board .tile').forEach((el) => { const r = el.getBoundingClientRect(); before.set(+el.dataset.id, r); });
+      S.replay.phase = 1;
+      render();
+      let k = 0;
+      const reduce = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+      document.querySelectorAll('#board .tile').forEach((el) => {
+        if (reduce || !el.animate) return;
+        const id = +el.dataset.id, r = el.getBoundingClientRect(), o = before.get(id);
+        if (o) {
+          const dx = o.left - r.left, dy = o.top - r.top;
+          if (Math.abs(dx) + Math.abs(dy) > 1) el.animate([{ transform: `translate(${dx}px, ${dy}px)`, zIndex: 3 }, { transform: 'translate(0, 0)', zIndex: 3 }], { duration: 700, easing: 'cubic-bezier(.2,.8,.2,1)', delay: 120 });
+        } else {
+          el.animate([{ transform: 'translateY(-140px) scale(.5)', opacity: 0 }, { transform: 'translateY(0) scale(1)', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,.9,.25,1.1)', delay: 250 + 220 * k++, fill: 'backwards' });
+        }
+      });
+      setTimeout(() => { if (S.replay && S.replay.tok === tok) { S.replay = null; render(); } }, 1400 + 220 * Math.max(0, k - 1));
+    }, 1000);
+  }
   function locate(id) {
     if (S.work) { const si = S.work.board.findIndex((s) => s.includes(id)); if (si >= 0) return { where: 'board', si }; }
     return { where: 'rack' };
@@ -3939,7 +3972,7 @@ if (typeof module !== 'undefined') {
 
   function gameHTML() {
     const pub = S.pub;
-    const my = isMyTurn();
+    const my = isMyTurn() && !S.replay;
     const w = S.work;
     const board = viewBoard();
     const oldIds = new Set(pub.board.flat());
@@ -3988,7 +4021,8 @@ if (typeof module !== 'undefined') {
     const lastEv = [...S.feed].reverse().find((f) => !f.chat);
     const feed = S.feed.map((f) => f.chat ? `<div class="chat"><b>${esc(f.name)}</b> ${esc(f.m)}</div>` : `<div class="${/抽了一張牌|抽一張牌|無牌可抽/.test(f.m) ? 'dim' : /打出/.test(f.m) ? 'play' : ''}">${esc(f.m)}</div>`).join('');
     const canDraw = my && pub.phase === 'play';
-    return `<div class="game">
+    const canReplay = pub.phase === 'play' && !S.replay && !!S.prevBoard && (movedIds.size > 0 || (pub.lastPlaced || []).length > 0);
+    return `<div class="game${S.replay ? ' replaying' : ''}">
       <div class="top"><span class="title">魔橋</span>
         <span class="meta">${pub.code ? `房間 <b>${esc(pub.code)}</b>` : '單人'}</span>
         <span class="sp"></span>
@@ -3997,7 +4031,7 @@ if (typeof module !== 'undefined') {
         <button class="btn small" data-a="panel">紀錄${S.unread ? '<i class="dot"></i>' : ''}</button>
         <button class="btn small" data-a="rules">規則</button>
         <button class="btn small danger" data-a="leave">離開</button></div>
-      <div class="strip"><span class="latest">最新:<b>${esc(lastEv ? lastEv.m : '牌局開始')}</b></span><span class="sp"></span>${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
+      <div class="strip"><span class="latest">${S.replay ? '回放' : '最新'}:<b>${esc(lastEv ? lastEv.m : '牌局開始')}</b></span><span class="sp"></span>${canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
       <div class="tablearea"><div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
       <div class="deck${my ? ' mine' : ''}">
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
@@ -4132,6 +4166,7 @@ if (typeof module !== 'undefined') {
       case 'resume': resumeHost(); break;
       case 'rules': S.modal = 'rules'; render(); break;
       case 'closeRules': S.modal = null; render(); break;
+      case 'replay': startReplay(); break;
       case 'copyLink': try { navigator.clipboard.writeText(inviteURL()).then(() => say('已複製邀請連結')).catch(() => say('請手動複製:' + inviteURL())); } catch (e) { say('請手動複製:' + inviteURL()); } break;
       case 'shareLink': try { navigator.share({ title: '魔橋', text: '來玩魔橋!房間代碼 ' + S.code, url: inviteURL() }).catch(() => {}); } catch (e) {} break;
       case 'joinInvite': joinRoom(S.invite); break;

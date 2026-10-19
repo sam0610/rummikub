@@ -997,7 +997,7 @@ if (typeof module !== 'undefined') {
     roomNS: undefined, room: null, code: null, isHost: false, busy: '',
     G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [],
     work: null, sel: null, msel: [], fresh: new Set(), prevBoard: null, assist: null, hint: null, draft: null, turnStart: Date.now(),
-    feed: [], lastK: 0, soloBots: 2, soloTimer: 0, panel: false, modal: null, hideResult: false,
+    feed: [], lastK: 0, soloBots: 2, soloTimer: 0, soloAssist: true, panel: false, modal: null, hideResult: false,
     welcomed: false, hostGone: false, drawArmed: false, unsubs: [],
   };
 
@@ -1062,7 +1062,7 @@ if (typeof module !== 'undefined') {
     return { id: 'p' + G.seq++, name, bot: !!bot, tok: tok || null, peer: null, connected: true, hand: [], melded: false, score: 0 };
   }
   function newLobby() {
-    S.G = { phase: 'wait', rev: 0, settings: { timer: 0, initial: 30 }, players: [], board: [], pool: [], turn: 0, turnNo: 0, lastPlaced: [], log: [], logSeq: 0, seq: 1, winner: null, endReason: null, results: null };
+    S.G = { phase: 'wait', rev: 0, settings: { timer: 0, initial: 30, assist: true }, players: [], board: [], pool: [], turn: 0, turnNo: 0, lastPlaced: [], log: [], logSeq: 0, seq: 1, winner: null, endReason: null, results: null };
     S.G.players.push(mkPlayer(S.name || '玩家', false, S.tok));
   }
   function addBot() {
@@ -1297,7 +1297,7 @@ if (typeof module !== 'undefined') {
     S.isHost = true; S.code = null; S.room = null;
     newLobby();
     for (let i = 0; i < S.soloBots; i++) addBot();
-    S.G.settings.timer = S.soloTimer;
+    S.G.settings.timer = S.soloTimer; S.G.settings.assist = S.soloAssist;
     startGame();
   }
   function resumeHost() {
@@ -1459,6 +1459,7 @@ if (typeof module !== 'undefined') {
     return { ok: false, miss };
   }
   function doAssist() {
+    if (S.pub && S.pub.settings.assist === false) return;
     if (!isMyTurn() || !S.work) return;
     const sug = planSuggestion();
     S.assist = { sug };
@@ -1540,6 +1541,8 @@ if (typeof module !== 'undefined') {
             <div class="seg">${[1, 2, 3].map((n) => `<button data-a="bots" data-n="${n}" class="${S.soloBots === n ? 'on' : ''}">${n}</button>`).join('')}</div></div>
           <div class="row" style="margin-top:8px"><span class="hint lbl">每回合計時</span>
             <div class="seg">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<button data-a="soloTimer" data-n="${v}" class="${S.soloTimer === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+          <div class="row" style="margin-top:8px"><span class="hint lbl">智能建議</span>
+            <div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="soloAssist" data-n="${v ? 1 : 0}" class="${S.soloAssist === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <button class="btn primary wide" style="margin-top:12px" data-a="solo"${dis}>開始單人遊戲</button></div>
         <hr class="sep">
         <div><h2>線上對戰</h2>
@@ -1566,8 +1569,9 @@ if (typeof module !== 'undefined') {
         <span class="grow"></span>
         <label class="hint" for="selTimer">每回合計時</label>
         <select id="selTimer" class="field" data-a="timer">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<option value="${v}"${pub.settings.timer === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
+      <div class="row"><span class="hint">智能建議</span><div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="setAssist" data-n="${v ? 1 : 0}" class="${(pub.settings.assist !== false) === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <button class="btn primary" data-a="start"${n < 2 ? ' disabled' : ''}>開始遊戲(${n} 人)</button>
-      ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
+      ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">本局設定:${pub.settings.timer > 0 ? '每回合 ' + pub.settings.timer + ' 秒' : '不計時'} · 智能建議${pub.settings.assist === false ? '關閉' : '開啟'}</p><p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
     return `<div class="lobby"><div class="hero"><h1>魔橋</h1></div>
       <div class="panel">
         ${pub.code ? `<div><h2>房間代碼</h2><div class="code codetiles">${[...pub.code].map((ch, i) => `<div class="tile c${i % 4}"><b>${esc(ch)}</b></div>`).join('')}</div>
@@ -1658,7 +1662,7 @@ if (typeof module !== 'undefined') {
       <div class="deck${my ? ' mine' : ''}">
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}
-          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div><div class="ar">
+          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div><div class="ar">
             ${my && S.msel.length > 1 ? `<button class="btn small primary" data-a="putmulti">放成新牌組(${S.msel.length})</button>` : ''}
             <button class="btn small" data-a="reset"${my && c && c.dirty ? '' : ' disabled'}>還原</button>
             <button class="btn small${S.drawArmed ? ' danger' : ''}" data-a="draw"${canDraw ? '' : ' disabled'}>${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>
@@ -1697,7 +1701,7 @@ if (typeof module !== 'undefined') {
       <div><h3>回合</h3><ul><li>開局每人 14 張。第一次出牌,打出的新牌組點數合計要有 30 點以上,而且只能用自己的牌,不能動桌面上的牌。</li><li>開局之後,可以接牌、拆開、重組桌面上所有牌組,只要回合結束時每一組都合規則。桌面上的牌不能收回手牌。</li><li>打不出牌時抽 1 張,回合結束。</li></ul></div>
       <div><h3>百搭牌</h3><p>可以代替任何顏色和數字。桌面上的百搭牌可以用手上正確的牌換出來,換出的百搭牌要在同一回合內用到別的牌組。</p></div>
       <div><h3>計分</h3><p>勝者得到其他人手牌點數的總和,其他人各扣自己的剩餘點數,百搭牌剩在手上算 30 點。牌堆抽完且沒有人能出牌時,剩餘點數最少者獲勝。</p></div>
-      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,綠色實線是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議:輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
+      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,綠色實線是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議(開局前可選擇關閉):輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
       <div class="row"><span class="grow"></span><button class="btn primary" data-a="closeRules">知道了</button></div></div></div>`;
   }
 
@@ -1778,6 +1782,8 @@ if (typeof module !== 'undefined') {
   });
   function doAction(k, el) {
     switch (k) {
+      case 'soloAssist': S.soloAssist = el.dataset.n === '1'; render(); break;
+      case 'setAssist': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.assist = el.dataset.n === '1'; hostBroadcast(); } break;
       case 'soloTimer': S.soloTimer = +el.dataset.n; render(); break;
       case 'bots': S.soloBots = +el.dataset.n; render(); break;
       case 'solo': startSolo(); break;

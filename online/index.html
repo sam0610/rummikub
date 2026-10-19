@@ -3278,8 +3278,28 @@ function botDecide(G, seat) {
   return { type: 'draw' };
 }
 
+/* 找出「真的從一組移到另一組」的牌:每個舊牌組的牌只會留在它最大的去向,
+   每個新牌組也只認一個最大的來源;其餘進來/離開的舊牌才算移動。只是在同一組加牌不算。 */
+function movedTiles(prev, cur) {
+  const prevOf = new Map(), curOf = new Map();
+  prev.forEach((s, i) => s.forEach((id) => prevOf.set(id, i)));
+  cur.forEach((s, j) => s.forEach((id) => curOf.set(id, j)));
+  const ov = prev.map(() => cur.map(() => 0));
+  for (const [id, i] of prevOf) { const j = curOf.get(id); if (j !== undefined) ov[i][j]++; }
+  const best = (row, size) => { let b = -1, bv = 0; row.forEach((v, k) => { if (v > bv || (v === bv && v > 0 && size[k] > size[b])) { b = k; bv = v; } }); return b; };
+  const pSize = prev.map((s) => s.length), cSize = cur.map((s) => s.length);
+  const heir = prev.map((_, i) => best(ov[i], cSize));
+  const anchor = cur.map((_, j) => best(prev.map((__, i) => ov[i][j]), pSize));
+  const moved = new Set();
+  for (const [id, i] of prevOf) {
+    const j = curOf.get(id);
+    if (j === undefined || !(heir[i] === j && anchor[j] === i)) moved.add(id);
+  }
+  return moved;
+}
+
 if (typeof module !== 'undefined') {
-  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, findBestMelds, shuffle, setKey };
+  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, findBestMelds, shuffle, setKey, movedTiles };
 }
 
 
@@ -3926,6 +3946,7 @@ if (typeof module !== 'undefined') {
     const recent = new Set(pub.lastPlaced || []);
     const pubKeys = new Set(pub.board.map(setKey));
     const prevKeys = S.prevBoard ? new Set(S.prevBoard.map(setKey)) : null;
+    const movedIds = S.prevBoard ? movedTiles(S.prevBoard, pub.board) : new Set();
     const sel = S.sel, dg = dragId();
     const setsHTML = board.map((s, si) => {
       const L = layoutSet(s);
@@ -3937,7 +3958,7 @@ if (typeof module !== 'undefined') {
         sel: sel === id, drag: dg === id, jv: L.jv[id],
         mine: my && w ? w.placed.has(id) : false,
         recent: recent.has(id) || (!my && S.draft && !oldIds.has(id)),
-        moved: chg && !recent.has(id),
+        moved: chg && movedIds.has(id) && !recent.has(id),
       })).join('')}</div>`;
     }).join('');
     const rackIds = S.rackOrder.filter((id) => !(w && w.placed.has(id)));

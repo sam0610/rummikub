@@ -79,11 +79,11 @@ button { cursor: pointer; }
 .tile.joker .smile { width: calc(var(--tw) * 0.84); height: calc(var(--tw) * 0.84); display: block; }
 .tile.joker s { position: absolute; bottom: 1px; right: 3px; text-decoration: none; font-size: calc(var(--tw) * 0.27); color: currentColor; opacity: 0.95; }
 .tile.sel { transform: translateY(-6px); box-shadow: 0 0 0 2.5px var(--ink), 0 10px 14px rgba(21, 26, 36, 0.2); }
-.tile.mine::after, .tile.recent::after, .tile.moved::after {
+.tile.mine::after, .tile.moved::after {
   content: ''; position: absolute; left: 14%; right: 14%; bottom: calc(var(--tw) * -0.17); height: 4px; border-radius: 2px;
 }
 .tile.mine::after { background: var(--hl-line); }
-.tile.recent::after { background: #1f9d6b; }
+.tile.recent { transform: translateY(-6px); box-shadow: 0 8px 14px rgba(31, 157, 107, 0.45), 0 0 0 2px #1f9d6b; z-index: 1; }
 .tile.moved::after { background: repeating-linear-gradient(90deg, #1f9d6b 0 5px, transparent 5px 8px); }
 .set.chg { border-color: #1f9d6b; box-shadow: 0 0 0 2px rgba(31, 157, 107, 0.28), 0 4px 10px rgba(21, 26, 36, 0.07); }
 .tile.fresh { box-shadow: 0 0 0 3px var(--hl), 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 10px rgba(21, 26, 36, 0.14); }
@@ -4041,7 +4041,7 @@ if (typeof module !== 'undefined') {
       <div><h3>回合</h3><ul><li>開局每人 14 張。第一次出牌,打出的新牌組點數合計要有 30 點以上,而且只能用自己的牌,不能動桌面上的牌。</li><li>開局之後,可以接牌、拆開、重組桌面上所有牌組,只要回合結束時每一組都合規則。桌面上的牌不能收回手牌。</li><li>打不出牌時抽 1 張,回合結束。</li></ul></div>
       <div><h3>百搭牌</h3><p>可以代替任何顏色和數字。桌面上的百搭牌可以用手上正確的牌換出來,換出的百搭牌要在同一回合內用到別的牌組。</p></div>
       <div><h3>計分</h3><p>勝者得到其他人手牌點數的總和,其他人各扣自己的剩餘點數,百搭牌剩在手上算 30 點。牌堆抽完且沒有人能出牌時,剩餘點數最少者獲勝。</p></div>
-      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,綠色實線是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議(開局前可選擇關閉):輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
+      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,浮起並帶綠光的是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議(開局前可選擇關閉):輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
       <div class="row"><span class="grow"></span><button class="btn primary" data-a="closeRules">知道了</button></div></div></div>`;
   }
 

@@ -219,8 +219,13 @@ select.field { width: auto; }
 .meter.done .bar i { background: var(--ok); }
 .meter.done b { color: var(--ok); }
 .actions { display: flex; gap: 6px 12px; flex-wrap: wrap; justify-content: space-between; align-items: center; flex: 1 1 100%; }
-.actions .al, .actions .ar { display: flex; gap: 6px; flex-wrap: wrap; }
-.actions .ar { justify-content: flex-end; margin-left: auto; }
+.actions .al { display: flex; gap: 6px; flex-wrap: wrap; }
+.rackwrap { display: flex; gap: 12px; align-items: stretch; min-height: 0; min-width: 0; }
+.rackwrap .rack { flex: 1 1 0; min-width: 0; }
+.dock { flex: 0 0 168px; display: flex; flex-direction: column; justify-content: flex-end; gap: 8px; padding: 10px 0; }
+.dock .btn { width: 100%; }
+.btn.reset { min-height: 38px; }
+.btn.newset-btn { background: var(--ink); border-color: var(--ink); color: #fff; }
 .rack { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 2px 10px; min-height: calc(var(--tw) * 1.32 + 16px); max-height: calc(var(--tw) * 1.32 * 3 + 50px); overflow: auto; align-content: flex-start; }
 .rack.hot { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 12px; }
 .rack .none { color: var(--muted); font-size: 13px; margin: auto; }
@@ -320,10 +325,14 @@ select.field { width: auto; }
   .meter { flex: 1 1 100%; margin-left: 0; justify-content: flex-start; }
   .meter .bar { flex: 1 1 auto; }
   .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
-  .actions .al, .actions .ar { display: flex; flex-wrap: nowrap; gap: 6px; margin: 0; }
+  .actions .al { display: flex; flex-wrap: nowrap; gap: 6px; margin: 0; }
   .actions .btn { flex: 1 1 0; min-width: 0; padding-left: 0.3em; padding-right: 0.3em; white-space: nowrap; }
-  .actions .ar .btn.big { flex: 1.6 1 0; min-height: 50px; font-size: 17px; }
-  .actions .ar .btn.big.finish { flex: 2 1 0; }
+  .rackwrap { flex-direction: column; gap: 0; flex: 1 1 auto; min-height: 0; }
+  .rackwrap .rack { flex: 1 1 auto; }
+  .dock { flex: none; flex-direction: row; gap: 8px; padding: 0 0 2px; }
+  .dock .btn { width: auto; flex: 1 1 0; min-width: 0; }
+  .dock .btn.big { flex: 2 1 0; min-height: 52px; font-size: 17px; }
+  .dock .btn.reset { flex: 1 1 0; min-height: 52px; }
   .deck { max-height: 62%; min-height: 0; }
   .rack { gap: 5px; padding: 8px 0 12px; flex: 1 1 auto; min-height: calc(var(--tw) * 1.32 + 16px); max-height: none; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
   .rack .tile.gap { margin-left: 10px; }
@@ -4061,6 +4070,10 @@ if (typeof module !== 'undefined') {
     const lastEv = [...S.feed].reverse().find((f) => !f.chat);
     const feed = S.feed.map((f) => f.chat ? `<div class="chat"><b>${esc(f.name)}</b> ${esc(f.m)}</div>` : `<div class="${/抽了一張牌|抽一張牌|無牌可抽/.test(f.m) ? 'dim' : /打出/.test(f.m) ? 'play' : ''}">${esc(f.m)}</div>`).join('');
     const canDraw = my && pub.phase === 'play';
+    const dirty = !!(my && c && c.dirty);
+    const dockHTML = my && pub.phase === 'play' ? `<div class="dock">${S.msel.length > 1 ? `<button class="btn big newset-btn" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}${dirty
+      ? `<button class="btn reset" data-a="reset">還原</button><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
+      : `<button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw">${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>`}</div>` : '';
     const canReplay = pub.phase === 'play' && !S.replay && replaySteps().some((x) => x.changed);
     return `<div class="game${S.replay ? ' replaying' : ''}">
       <div class="top"><span class="title">魔橋</span>
@@ -4076,13 +4089,11 @@ if (typeof module !== 'undefined') {
       <div class="deck${my ? ' mine' : ''}">
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}
-          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div><div class="ar">
-            ${my && S.msel.length > 1 ? `<button class="btn small primary" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}
-            <button class="btn small" data-a="reset"${my && c && c.dirty ? '' : ' disabled'}>還原</button>
-            <button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw"${canDraw ? '' : ' disabled'}>${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>
-            <button class="btn big finish" data-a="end"${my && c && c.r.ok ? '' : ' disabled'}>完成回合</button></div></div></div>
+          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
         ${assistHTML()}
+        <div class="rackwrap">
         <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id), fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div>
+        ${dockHTML}</div>
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>

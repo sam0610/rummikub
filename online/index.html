@@ -322,7 +322,8 @@ select.field { width: auto; }
   .actions { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; }
   .actions .al, .actions .ar { display: flex; flex-wrap: nowrap; gap: 6px; margin: 0; }
   .actions .btn { flex: 1 1 0; min-width: 0; padding-left: 0.3em; padding-right: 0.3em; white-space: nowrap; }
-  .actions .ar .btn.primary { flex: 1.5 1 0; }
+  .actions .ar .btn.big { flex: 1.6 1 0; min-height: 50px; font-size: 17px; }
+  .actions .ar .btn.big.finish { flex: 2 1 0; }
   .deck { max-height: 62%; min-height: 0; }
   .rack { gap: 5px; padding: 8px 0 12px; flex: 1 1 auto; min-height: calc(var(--tw) * 1.32 + 16px); max-height: none; -webkit-overflow-scrolling: touch; overscroll-behavior: contain; }
   .rack .tile.gap { margin-left: 10px; }
@@ -346,6 +347,15 @@ select.field { width: auto; }
 .replaying .set.chg { border-color: var(--line); box-shadow: none; }
 .replaying .tile.moved::after { display: none; }
 .replaying .tile.recent { transform: none; box-shadow: 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 10px rgba(21, 26, 36, 0.14); }
+.btn.big { min-height: 46px; padding: 0.5em 1.3em; font-size: 16px; font-weight: 700; border-radius: 12px; border-width: 2px; }
+.btn.draw { background: #e8710a; border-color: #e8710a; color: #fff; }
+.btn.draw:hover:not(:disabled) { background: #c85f05; }
+.btn.draw.armed { background: #b3261e; border-color: #b3261e; animation: armPulse 0.9s ease-in-out infinite; }
+.btn.finish { background: #0f7b4f; border-color: #0f7b4f; color: #fff; }
+.btn.finish:hover:not(:disabled) { background: #0b6440; }
+.btn.finish:not(:disabled) { box-shadow: 0 0 0 3px rgba(31, 157, 107, 0.3), 0 6px 14px rgba(15, 123, 79, 0.35); }
+.btn.big:disabled { background: #c7cedb; border-color: #c7cedb; color: #6b7487; box-shadow: none; opacity: 1; cursor: default; }
+@keyframes armPulse { 50% { box-shadow: 0 0 0 4px rgba(179, 38, 30, 0.3); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 
@@ -4069,8 +4079,8 @@ if (typeof module !== 'undefined') {
           <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div><div class="ar">
             ${my && S.msel.length > 1 ? `<button class="btn small primary" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}
             <button class="btn small" data-a="reset"${my && c && c.dirty ? '' : ' disabled'}>還原</button>
-            <button class="btn small${S.drawArmed ? ' danger' : ''}" data-a="draw"${canDraw ? '' : ' disabled'}>${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>
-            <button class="btn small primary" data-a="end"${my && c && c.r.ok ? '' : ' disabled'}>完成回合</button></div></div></div>
+            <button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw"${canDraw ? '' : ' disabled'}>${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>
+            <button class="btn big finish" data-a="end"${my && c && c.r.ok ? '' : ' disabled'}>完成回合</button></div></div></div>
         ${assistHTML()}
         <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id), fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div>
       </div>

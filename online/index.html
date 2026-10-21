@@ -27,11 +27,13 @@
   --t-orange: #e8710a;
   --ui: 'Noto Sans TC', 'PingFang TC', 'Microsoft JhengHei', system-ui, sans-serif;
   --num: 'DM Sans', 'Noto Sans TC', system-ui, sans-serif;
-  --tw: clamp(32px, 6.2vw, 46px);
+  --twb: clamp(32px, 6.2vw, 46px);
+  --k: 1;
+  --tw: calc(var(--twb) * var(--k));
   --txt: var(--ink);
   color-scheme: light;
 }
-@media (min-width: 1100px) and (min-height: 740px) { :root { --tw: 52px; } }
+@media (min-width: 1100px) and (min-height: 740px) { :root { --twb: 52px; } }
 * { box-sizing: border-box; }
 html, body { height: 100%; }
 html { -webkit-text-size-adjust: 100%; -webkit-tap-highlight-color: transparent; }
@@ -232,6 +234,11 @@ select.field { width: auto; }
   .deck > .dock { position: absolute; top: 12px; bottom: 12px; right: 14px; width: 170px; justify-content: stretch; }
   .dock .btn { padding-top: 0; padding-bottom: 0; }
 }
+
+.sizer { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+.sizer .szl { font-size: 12px; color: var(--muted); padding-right: 2px; }
+.sizer .btn.small { min-width: 30px; padding: 0 0.5em; }
+.sidebtns .sizer { margin-right: auto; }
 .btn.newset-btn { background: var(--ink); border-color: var(--ink); color: #fff; }
 .rack { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 2px 10px; min-height: calc(var(--tw) * 1.32 + 16px); max-height: calc(var(--tw) * 1.32 * 3 + 50px); overflow: auto; align-content: flex-start; }
 .rack.hot { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 12px; }
@@ -354,12 +361,12 @@ select.field { width: auto; }
   .panel .row .btn.primary { min-height: 42px; }
   .field { min-height: 42px; }
 }
-@media (max-width: 560px) and (max-height: 700px) { :root { --tw: 29px; } .deck { max-height: 56%; } }
+@media (max-width: 560px) and (max-height: 700px) { :root { --twb: 29px; } .deck { max-height: 56%; } }
 
 .sidebtns { display: none; }
 .menubtn .ham { display: none; }
 @media (max-width: 560px) {
-  .top { flex-wrap: nowrap; gap: 6px; }
+  .top { gap: 6px; }
   .top .title, .top .meta, .top .sp, .top .topx { display: none; }
   .players { flex: 1 1 0; min-width: 0; }
   .menubtn { position: relative; flex: none; min-height: 38px; width: 38px; padding: 0; }
@@ -383,6 +390,49 @@ select.field { width: auto; }
   .game { gap: 5px; }
 }
 @media (max-width: 560px) and (max-height: 700px) { .deck { max-height: none; } }
+@media (min-width: 561px) {
+  .game { gap: 6px; }
+  .top { flex-wrap: nowrap; gap: 8px; }
+  .top .title { display: none; }
+  .top .meta { flex: none; white-space: nowrap; }
+  .top > .sp { display: none; }
+  .top .menubtn { order: 0; }
+  .menubtn .ham { display: none; }
+  .top .strip { flex: 1 1 0; min-width: 0; }
+  .top .strip .latest { flex: 1 1 0; min-width: 0; padding: 2px 10px; }
+  .top .strip .sp { display: none; }
+  .top .strip > span:not(.latest), .top .strip .btn { flex: none; white-space: nowrap; }
+  .top .btn.small { min-height: 30px; font-size: 12.5px; padding: 0 0.7em; }
+  .pchip { padding: 3px 14px 3px 3px; }
+  .pchip .av { width: 30px; height: 30px; font-size: 14px; }
+  .pchip .s { font-size: 11px; }
+  .board { gap: 20px 10px; padding: 28px 16px 12px; }
+  .set { padding: 6px; gap: 3px; }
+  .deck { display: grid; position: relative; padding: 6px 10px 8px; gap: 2px; grid-template-columns: minmax(0, 1fr) 118px; align-items: start; }
+  .deck > * { grid-column: 1; }
+  .deck > .dock { position: absolute; display: grid; grid-auto-rows: minmax(0, 1fr); flex-direction: initial; width: 118px; right: 10px; top: 8px; bottom: 8px; padding: 0; }
+  .dock .btn { width: 100%; height: 100%; min-height: 0; padding-top: 0; padding-bottom: 0; }
+  .dock .btn.big, .dock .btn.reset { min-height: 0; height: 100%; font-size: 15px; }
+  .deck .status { flex-wrap: nowrap; gap: 8px; min-height: 0; }
+  .status .msg { flex: 1 1 0; font-size: 13px; }
+  .status .meter { flex: 0 0 auto; }
+  .status .actions { flex: 0 0 auto; }
+  .status .actions .btn { min-height: 28px; font-size: 12.5px; }
+  .rack { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-height: none; align-content: center; padding: 6px 2px 10px; -webkit-overflow-scrolling: touch; }
+  .rack .tile { flex: none; }
+}
+@media (min-width: 561px) and (max-width: 1000px) {
+  .top { flex-wrap: wrap; }
+  .top .strip { flex: 1 1 100%; order: 5; }
+  .top .players { flex: 1 1 0; min-width: 0; }
+  .pchip .s { display: none; }
+}
+@media (max-width: 560px) {
+  .top { flex-wrap: wrap; }
+  .top .players { order: 0; flex: 1 1 0; min-width: 0; }
+  .top .menubtn { order: 1; }
+  .top .strip { order: 5; flex: 1 1 100%; min-width: 0; }
+}
 .invite { display: flex; gap: 14px; align-items: center; margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
 .invite .qr { flex: none; width: 124px; height: 124px; background: #fff; border-radius: 8px; padding: 2px; }
 .invite .qr svg { width: 100%; height: 100%; display: block; }
@@ -3353,6 +3403,7 @@ if (typeof module !== 'undefined') {
   const S = {
     tok: LS.get('mk-tok') || (() => { const t = rid(24); LS.set('mk-tok', t); return t; })(),
     name: LS.get('mk-name') || '',
+    k: (() => { const v = parseFloat(LS.get('mk-k')); return v >= 0.7 && v <= 1.5 ? v : 1; })(),
     roomNS: undefined, room: null, code: null, isHost: false, busy: '',
     G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [],
     work: null, sel: null, msel: [], fresh: new Set(), prevBoard: null, replay: null, hist: [], assist: null, hint: null, draft: null, turnStart: Date.now(),
@@ -4083,17 +4134,17 @@ if (typeof module !== 'undefined') {
     const dockHTML = my && pub.phase === 'play' ? `<div class="dock">${S.msel.length > 1 ? `<button class="btn big newset-btn" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}${dirty
       ? `<button class="btn reset" data-a="reset">還原</button><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
       : `<button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw">${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>`}</div>` : '';
+    const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
     const canReplay = pub.phase === 'play' && !S.replay && replaySteps().some((x) => x.changed);
     return `<div class="game${S.replay ? ' replaying' : ''}">
       <div class="top"><span class="title">魔橋</span>
         <span class="meta">${pub.code ? `房間 <b>${esc(pub.code)}</b>` : '單人'}</span>
-        <span class="sp"></span>
         <div class="players">${chips}</div>
-        <span class="sp"></span>
+        <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b></span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
+        <span class="sizer topx" title="牌的大小">${sizerHTML}</span>
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
         <button class="btn small topx" data-a="rules">規則</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
-      <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b></span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
       <div class="tablearea"><div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
       <div class="deck${my ? ' mine' : ''}">
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
@@ -4105,7 +4156,7 @@ if (typeof module !== 'undefined') {
         ${dockHTML}
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
-        <div class="sidebtns"><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
+        <div class="sidebtns"><span class="sizer">${sizerHTML}</span><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>
         ${S.room ? `<div class="chatrow"><input id="chatIn" class="field" maxlength="120" placeholder="說點什麼…" autocomplete="off"><button class="btn small" data-a="chat">送出</button></div>` : ''}
       </aside>
@@ -4215,6 +4266,8 @@ if (typeof module !== 'undefined') {
     else if (setEl) moveTile(S.sel, { kind: 'set', si: +setEl.dataset.si });
     else if (boardEl) moveTile(S.sel, { kind: 'board' });
   });
+  function setK(v) { S.k = v; LS.set('mk-k', String(v)); document.documentElement.style.setProperty('--k', String(v)); render(); }
+  document.documentElement.style.setProperty('--k', String(S.k));
   function doAction(k, el) {
     switch (k) {
       case 'soloAssist': S.soloAssist = el.dataset.n === '1'; render(); break;
@@ -4239,6 +4292,7 @@ if (typeof module !== 'undefined') {
       case 'again': if (S.isHost && S.G && S.G.phase === 'end') { const old = S.G; S.G = { ...old, phase: 'wait' }; startGame(); } break;
       case 'hideResult': S.hideResult = true; render(); break;
       case 'leave': leave(); break;
+      case 'twMinus': case 'twPlus': { const nk = Math.max(0.7, Math.min(1.5, Math.round((S.k + (k === 'twPlus' ? 0.1 : -0.1)) * 10) / 10)); setK(nk); break; }
       case 'panel': S.panel = !S.panel; if (S.panel) S.unread = 0; render(); break;
       case 'chat': sendChat(); break;
       case 'sort-color': sortRack('color'); break;

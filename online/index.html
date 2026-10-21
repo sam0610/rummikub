@@ -2711,6 +2711,7 @@ var qrcode = function() {
     });
     return authP;
   }
+  const dec = (x) => { try { return x == null ? null : JSON.parse(x); } catch (e) { return null; } };
   const withTimeout = (p, ms, e) => new Promise((res, rej) => { const t = setTimeout(() => rej(e), ms); p.then((v) => { clearTimeout(t); res(v); }, (x) => { clearTimeout(t); rej(err('server', '連線伺服器拒絕了請求(' + (x && x.code ? x.code : '') + ')')); }); });
 
   async function join(name, opts) {
@@ -2760,10 +2761,10 @@ var qrcode = function() {
 
     /* ----- 發送 ----- */
     const push = (path, obj) => { try { return room.child(path).push(obj).catch(() => {}); } catch (e) {} };
-    function toInbox(peer, topic, data) { push('inbox/' + peer, { topic, data, from: me }); }
+    function toInbox(peer, topic, data) { push('inbox/' + peer, { topic, d: JSON.stringify(data === undefined ? null : data), from: me }); }
     function toAll(topic, data, from) {
       const ref = room.child('bc').push();
-      ref.set({ topic, data, from: from || me }).catch(() => {});
+      ref.set({ topic, d: JSON.stringify(data === undefined ? null : data), from: from || me }).catch(() => {});
       setTimeout(() => { try { ref.remove(); } catch (e) {} }, 20000);
     }
     function hostRelay(topic, data, from) {
@@ -2778,8 +2779,8 @@ var qrcode = function() {
     const onInbox = inboxRef.on('child_added', (snap) => {
       const m = snap.val(); try { snap.ref.remove(); } catch (e) {}
       if (!m || closed) return;
-      deliver(m.topic, m.data, m.from);
-      if (isHost && m.from !== me) hostRelay(m.topic, m.data, m.from);
+      const dd = dec(m.d); deliver(m.topic, dd, m.from);
+      if (isHost && m.from !== me) hostRelay(m.topic, dd, m.from);
     });
     offs.push(() => inboxRef.off('child_added', onInbox));
     if (!isHost) {
@@ -2790,20 +2791,20 @@ var qrcode = function() {
       const onBc = q.on('child_added', (snap) => {
         const m = snap.val();
         if (!m || closed || m.from === me) return;
-        deliver(m.topic, m.data, m.from);
+        deliver(m.topic, dec(m.d), m.from);
       });
       offs.push(() => q.off('child_added', onBc));
     }
 
     /* ----- 在線名單 ----- */
     const myRef = room.child('peers/' + me);
-    const writeMe = () => { myRef.onDisconnect().remove(); return myRef.set({ presence: myPres, at: Date.now() }).catch(() => {}); };
+    const writeMe = () => { myRef.onDisconnect().remove(); return myRef.set({ p: JSON.stringify(myPres), at: Date.now() }).catch(() => {}); };
     const peersRef = room.child('peers');
     const onPeersVal = peersRef.on('value', (snap) => {
       const v = snap.val() || {};
-      const next = Object.keys(v).sort().map((k) => ({ peer: k, presence: (v[k] && v[k].presence) || {}, updatedAt: (v[k] && v[k].at) || 0 }));
+      const next = Object.keys(v).sort().map((k) => ({ peer: k, presence: (v[k] && dec(v[k].p)) || {}, updatedAt: (v[k] && v[k].at) || 0 }));
       setList(next);
-    });
+    }, (e) => console.error('peers listen', e));
     offs.push(() => peersRef.off('value', onPeersVal));
     const connRef = db.ref('.info/connected');
     let first = true;
@@ -2832,7 +2833,7 @@ var qrcode = function() {
         myPres = Object.assign({}, myPres, patch || {});
         for (const k of Object.keys(myPres)) if (myPres[k] === null) delete myPres[k];
         setList(list.map((p) => (p.peer === me ? { peer: me, presence: myPres, updatedAt: Date.now() } : p)));
-        await myRef.set({ presence: myPres, at: Date.now() }).catch(() => {});
+        await myRef.set({ p: JSON.stringify(myPres), at: Date.now() }).catch(() => {});
       },
       peers,
       onPeers(fn) { peerLs.add(fn); return () => peerLs.delete(fn); },

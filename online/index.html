@@ -355,6 +355,34 @@ select.field { width: auto; }
   .field { min-height: 42px; }
 }
 @media (max-width: 560px) and (max-height: 700px) { :root { --tw: 29px; } .deck { max-height: 56%; } }
+
+.sidebtns { display: none; }
+.menubtn .ham { display: none; }
+@media (max-width: 560px) {
+  .top { flex-wrap: nowrap; gap: 6px; }
+  .top .title, .top .meta, .top .sp, .top .topx { display: none; }
+  .players { flex: 1 1 0; min-width: 0; }
+  .menubtn { position: relative; flex: none; min-height: 38px; width: 38px; padding: 0; }
+  .menubtn .lbl { display: none; }
+  .menubtn .ham { display: inline; font-size: 18px; line-height: 1; }
+  .sidebtns { display: flex; gap: 8px; padding: 0 0 8px; }
+  .strip { line-height: 1.2; }
+  .status { gap: 4px 8px; }
+  .yourturn { order: 1; }
+  .status .msg { order: 2; flex: 1 1 calc(100% - 80px); font-size: 12.5px; line-height: 1.25; }
+  .meter { order: 3; flex: 1 1 80px; min-width: 0; gap: 6px; }
+  .meter > span:first-child { display: none; }
+  .meter small { display: none; }
+  .actions { order: 4; flex: 0 0 auto; margin-left: auto; display: block; }
+  .status .msg:has(+ .meter) { }
+  .actions .al { display: flex; gap: 4px; }
+  .actions .btn { flex: 0 0 auto; min-height: 28px; padding: 0.1em 0.6em; font-size: 12.5px; }
+  .deck { padding: 6px 8px 8px; gap: 4px; max-height: none; }
+  .rack { padding: 6px 0 8px; flex: 0 1 auto; max-height: calc(var(--tw) * 1.32 * 3 + 36px); overflow-y: auto; }
+  .menubtn { order: 9; }
+  .game { gap: 5px; }
+}
+@media (max-width: 560px) and (max-height: 700px) { .deck { max-height: none; } }
 .invite { display: flex; gap: 14px; align-items: center; margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
 .invite .qr { flex: none; width: 124px; height: 124px; background: #fff; border-radius: 8px; padding: 2px; }
 .invite .qr svg { width: 100%; height: 100%; display: block; }
@@ -4062,9 +4090,9 @@ if (typeof module !== 'undefined') {
         <span class="sp"></span>
         <div class="players">${chips}</div>
         <span class="sp"></span>
-        <button class="btn small" data-a="panel">紀錄${S.unread ? '<i class="dot"></i>' : ''}</button>
-        <button class="btn small" data-a="rules">規則</button>
-        <button class="btn small danger" data-a="leave">離開</button></div>
+        <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
+        <button class="btn small topx" data-a="rules">規則</button>
+        <button class="btn small danger topx" data-a="leave">離開</button></div>
       <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b></span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
       <div class="tablearea"><div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
       <div class="deck${my ? ' mine' : ''}">
@@ -4077,6 +4105,7 @@ if (typeof module !== 'undefined') {
         ${dockHTML}
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
+        <div class="sidebtns"><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>
         ${S.room ? `<div class="chatrow"><input id="chatIn" class="field" maxlength="120" placeholder="說點什麼…" autocomplete="off"><button class="btn small" data-a="chat">送出</button></div>` : ''}
       </aside>

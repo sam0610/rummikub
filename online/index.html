@@ -425,7 +425,7 @@ select.field { width: auto; }
   .status .meter { flex: 0 0 auto; }
   .status .actions { flex: 0 0 auto; }
   .status .actions .btn { min-height: 28px; font-size: 12.5px; }
-  .rack { flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-height: none; align-content: center; padding: 6px 2px 10px; -webkit-overflow-scrolling: touch; }
+  .rack { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: calc(var(--tw) * 1.32 * 3 + 40px); align-content: flex-start; padding: 6px 2px 8px; -webkit-overflow-scrolling: touch; }
   .rack .tile { flex: none; }
 }
 @media (min-width: 561px) and (max-width: 1000px) {

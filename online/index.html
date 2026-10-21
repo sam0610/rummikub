@@ -244,6 +244,12 @@ select.field { width: auto; }
 .dpair .btn { height: auto !important; flex: 1 1 0; min-width: 0; padding-left: 0.2em; padding-right: 0.2em; font-size: 14px; white-space: nowrap; }
 .dpair .btn:disabled { opacity: 0.45; }
 @media (max-width: 860px) { .dock .dpair { flex: 1.5 1 0; } .dock .dpair .btn { min-height: 52px; width: auto; } }
+
+.turnbanner { position: fixed; top: max(10px, env(safe-area-inset-top, 0px)); left: 50%; transform: translateX(-50%); z-index: 60; background: var(--hl); color: var(--ink); font-weight: 800; font-size: 18px; padding: 8px 26px; border-radius: 99px; border: 1.5px solid var(--ink); box-shadow: 0 6px 18px rgba(21, 26, 36, 0.25); pointer-events: none; animation: tbIn 2.6s both; }
+@keyframes tbIn { 0% { opacity: 0; transform: translate(-50%, -16px); } 8% { opacity: 1; transform: translate(-50%, 0); } 80% { opacity: 1; } 100% { opacity: 0; transform: translate(-50%, 0); } }
+.deck.flash { animation: dkFlash 0.9s ease-in-out 3; }
+@keyframes dkFlash { 0%, 100% { box-shadow: 0 0 0 3px var(--hl); } 50% { box-shadow: 0 0 0 10px var(--hl); } }
+@media (prefers-reduced-motion: reduce) { .deck.flash { animation: none; } .turnbanner { animation-duration: 0.01s; animation-delay: 0s !important; opacity: 1; } }
 .btn.newset-btn { background: var(--ink); border-color: var(--ink); color: #fff; }
 .rack { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 2px 10px; min-height: calc(var(--tw) * 1.32 + 16px); max-height: calc(var(--tw) * 1.32 * 3 + 50px); overflow: auto; align-content: flex-start; }
 .rack.hot { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 12px; }
@@ -3410,6 +3416,7 @@ if (typeof module !== 'undefined') {
   const S = {
     tok: LS.get('mk-tok') || (() => { const t = rid(24); LS.set('mk-tok', t); return t; })(),
     name: LS.get('mk-name') || '',
+    sound: LS.get('mk-snd') !== '0', turnFlash: 0,
     k: (() => { const v = parseFloat(LS.get('mk-k')); return v >= 0.7 && v <= 1.5 ? v : 1; })(),
     roomNS: undefined, room: null, code: null, isHost: false, busy: '',
     G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [],
@@ -3746,6 +3753,28 @@ if (typeof module !== 'undefined') {
     render();
   }
 
+  /* ---------- 輪到你:畫面提示 + 提示音 ---------- */
+  let AC = null;
+  function audioUnlock() { try { if (!AC) { const C = window.AudioContext || window.webkitAudioContext; if (C) AC = new C(); } if (AC && AC.state === 'suspended') AC.resume(); } catch (e) {} }
+  document.addEventListener('pointerdown', audioUnlock, { passive: true });
+  document.addEventListener('keydown', audioUnlock);
+  function beep() {
+    if (!S.sound || !AC) return;
+    try {
+      const t = AC.currentTime;
+      [[880, 0], [1320, 0.16]].forEach(([f, d]) => {
+        const o = AC.createOscillator(), g = AC.createGain();
+        o.type = 'sine'; o.frequency.value = f;
+        g.gain.setValueAtTime(0.0001, t + d); g.gain.exponentialRampToValueAtTime(0.25, t + d + 0.02); g.gain.exponentialRampToValueAtTime(0.0001, t + d + 0.28);
+        o.connect(g); g.connect(AC.destination); o.start(t + d); o.stop(t + d + 0.3);
+      });
+    } catch (e) {}
+  }
+  function notifyTurn() {
+    S.turnFlash = Date.now();
+    beep();
+    setTimeout(() => { if (S.turnFlash && Date.now() - S.turnFlash >= 2500) { S.turnFlash = 0; render(); } }, 2600);
+  }
   /* ---------- 收到公開狀態(房主自己也走這裡) ---------- */
   function onPub(pub) {
     const prev = S.pub;
@@ -3763,6 +3792,7 @@ if (typeof module !== 'undefined') {
         } else S.hist = [];
         S.turnStart = Date.now(); S.draft = null; S.sel = null; S.msel = []; S.assist = null; S.hint = null; S.drawArmed = false; S.replay = null;
         S.undo = []; S.work = isMyTurn() ? { board: pub.board.map((s) => s.slice()), placed: new Set() } : null;
+        if (S.work && !(prev && prev.phase === 'play' && prev.turnNo === pub.turnNo)) notifyTurn(); else S.turnFlash = 0;
       }
     } else { S.hist = []; S.work = null; S.sel = null; S.msel = []; if (pub.phase === 'end' && (!prev || prev.phase !== 'end')) S.hideResult = false; }
     const logs = pub.log || [];
@@ -4170,17 +4200,20 @@ if (typeof module !== 'undefined') {
       : `<button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw">${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>`}</div>` : '';
     const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
     const canReplay = pub.phase === 'play' && !S.replay && replaySteps().some((x) => x.changed);
-    return `<div class="game${S.replay ? ' replaying' : ''}">
+    const flEl = S.turnFlash ? Date.now() - S.turnFlash : -1;
+    const flash = my && flEl >= 0 && flEl < 2600;
+    const sndBtn = `<button class="btn small" data-a="snd">提示音:${S.sound ? '開' : '關'}</button>`;
+    return `<div class="game${S.replay ? ' replaying' : ''}">${flash ? `<div class="turnbanner" style="animation-delay:-${flEl}ms">輪到你了</div>` : ''}
       <div class="top"><span class="title">魔橋</span>
         <span class="meta">${pub.code ? `房間 <b>${esc(pub.code)}</b>` : '單人'}</span>
         <div class="players">${chips}</div>
         <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b></span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
-        <span class="sizer topx" title="牌的大小">${sizerHTML}</span>
+        <span class="sizer topx" title="牌的大小">${sizerHTML}</span>${`<span class="topx">${sndBtn}</span>`}
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
         <button class="btn small topx" data-a="rules">規則</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
       <div class="tablearea"><div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
-      <div class="deck${my ? ' mine' : ''}">
+      <div class="deck${my ? ' mine' : ''}${flash ? ' flash' : ''}"${flash ? ` style="animation-delay:-${flEl}ms"` : ''}>
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}
           <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
@@ -4190,7 +4223,7 @@ if (typeof module !== 'undefined') {
         ${dockHTML}
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
-        <div class="sidebtns"><span class="sizer">${sizerHTML}</span><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
+        <div class="sidebtns"><span class="sizer">${sizerHTML}</span>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>
         ${S.room ? `<div class="chatrow"><input id="chatIn" class="field" maxlength="120" placeholder="說點什麼…" autocomplete="off"><button class="btn small" data-a="chat">送出</button></div>` : ''}
       </aside>
@@ -4331,6 +4364,7 @@ if (typeof module !== 'undefined') {
       case 'chat': sendChat(); break;
       case 'sort-color': sortRack('color'); break;
       case 'sort-num': sortRack('num'); break;
+      case 'snd': S.sound = !S.sound; LS.set('mk-snd', S.sound ? '1' : '0'); if (S.sound) { audioUnlock(); beep(); } render(); break;
       case 'undo': undoStep(); break;
       case 'reset': resetWork(); break;
       case 'putmulti': moveMulti({ kind: 'board' }); break;

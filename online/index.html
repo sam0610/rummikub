@@ -239,6 +239,11 @@ select.field { width: auto; }
 .sizer .szl { font-size: 12px; color: var(--muted); padding-right: 2px; }
 .sizer .btn.small { min-width: 30px; padding: 0 0.5em; }
 .sidebtns .sizer { margin-right: auto; }
+
+.dpair { display: flex; gap: 6px; min-height: 0; }
+.dpair .btn { height: auto !important; flex: 1 1 0; min-width: 0; padding-left: 0.2em; padding-right: 0.2em; font-size: 14px; white-space: nowrap; }
+.dpair .btn:disabled { opacity: 0.45; }
+@media (max-width: 860px) { .dock .dpair { flex: 1.5 1 0; } .dock .dpair .btn { min-height: 52px; width: auto; } }
 .btn.newset-btn { background: var(--ink); border-color: var(--ink); color: #fff; }
 .rack { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 2px 10px; min-height: calc(var(--tw) * 1.32 + 16px); max-height: calc(var(--tw) * 1.32 * 3 + 50px); overflow: auto; align-content: flex-start; }
 .rack.hot { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 12px; }
@@ -3614,7 +3619,7 @@ if (typeof module !== 'undefined') {
       S.myId = d.id; S.melded = !!d.melded;
       S.welcomed = true;
       syncRack();
-      if (S.pub && isMyTurn() && !S.work) S.work = { board: S.pub.board.map((s) => s.slice()), placed: new Set() };
+      if (S.pub && isMyTurn() && !S.work) S.undo = [], S.work = { board: S.pub.board.map((s) => s.slice()), placed: new Set() };
       checkJoined();
       render();
     }
@@ -3757,7 +3762,7 @@ if (typeof module !== 'undefined') {
           if (S.hist.length > 12) S.hist.shift();
         } else S.hist = [];
         S.turnStart = Date.now(); S.draft = null; S.sel = null; S.msel = []; S.assist = null; S.hint = null; S.drawArmed = false; S.replay = null;
-        S.work = isMyTurn() ? { board: pub.board.map((s) => s.slice()), placed: new Set() } : null;
+        S.undo = []; S.work = isMyTurn() ? { board: pub.board.map((s) => s.slice()), placed: new Set() } : null;
       }
     } else { S.hist = []; S.work = null; S.sel = null; S.msel = []; if (pub.phase === 'end' && (!prev || prev.phase !== 'end')) S.hideResult = false; }
     const logs = pub.log || [];
@@ -3821,7 +3826,20 @@ if (typeof module !== 'undefined') {
     if (S.work) { const si = S.work.board.findIndex((s) => s.includes(id)); if (si >= 0) return { where: 'board', si }; }
     return { where: 'rack' };
   }
-  function changed() { S.assist = null; S.hint = null; render(); scheduleDraft(); }
+  function snapWork() { const w = S.work; return w ? JSON.stringify({ b: w.board, p: [...w.placed], r: S.rackOrder }) : null; }
+  function changed() {
+    const cur = snapWork();
+    if (S.pendSnap && S.pendSnap !== cur) { (S.undo = S.undo || []).push(S.pendSnap); if (S.undo.length > 60) S.undo.shift(); }
+    S.pendSnap = null;
+    S.assist = null; S.hint = null; render(); scheduleDraft();
+  }
+  function undoStep() {
+    if (!isMyTurn() || !S.work || !S.undo || !S.undo.length) return;
+    const o = JSON.parse(S.undo.pop());
+    S.work = { board: o.b, placed: new Set(o.p) }; S.rackOrder = o.r;
+    S.sel = null; S.msel = []; S.drawArmed = false; S.pendSnap = null;
+    S.assist = null; S.hint = null; render(); scheduleDraft();
+  }
   function scheduleDraft() {
     if (!S.room || !isMyTurn() || S.draftTimer) return;
     S.draftTimer = setTimeout(() => {
@@ -3831,6 +3849,7 @@ if (typeof module !== 'undefined') {
   }
   function moveTile(id, tgt) {
     const w = S.work;
+    S.pendSnap = snapWork();
     const si0 = w ? w.board.findIndex((s) => s.includes(id)) : -1;
     const fromBoard = si0 >= 0;
     const fail = (msg) => { if (msg) say(msg); S.sel = null; render(); };
@@ -3878,6 +3897,7 @@ if (typeof module !== 'undefined') {
   /* 一次移動多張牌:可以是手牌,也可以是桌面上的牌(多選模式),放進某個牌組或新牌組 */
   function moveMulti(tgt) {
     const w = S.work;
+    S.pendSnap = snapWork();
     const onBoard = (id) => !!w && w.board.some((x) => x.includes(id));
     const ids = S.msel.filter((id) => onBoard(id) || (S.rackOrder.includes(id) && !(w && w.placed.has(id))));
     const fail = (msg) => { if (msg) say(msg); S.msel = []; render(); };
@@ -3938,6 +3958,7 @@ if (typeof module !== 'undefined') {
   function applyAssist() {
     const a = S.assist;
     if (!a || !a.sug.ok || !isMyTurn()) return;
+    S.pendSnap = snapWork();
     S.work = { board: a.sug.plan.board.map((x) => x.slice()), placed: new Set(a.sug.placed) };
     S.sel = null; S.msel = []; S.drawArmed = false;
     changed();
@@ -3953,6 +3974,7 @@ if (typeof module !== 'undefined') {
   }
   function resetWork() {
     if (!isMyTurn()) return;
+    S.undo = []; S.pendSnap = null;
     S.work = { board: S.pub.board.map((s) => s.slice()), placed: new Set() };
     S.sel = null; S.drawArmed = false;
     changed();
@@ -4134,7 +4156,7 @@ if (typeof module !== 'undefined') {
     const canDraw = my && pub.phase === 'play';
     const dirty = !!(my && c && c.dirty);
     const dockHTML = my && pub.phase === 'play' ? `<div class="dock">${S.msel.length > 1 ? `<button class="btn big newset-btn" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}${dirty
-      ? `<button class="btn reset" data-a="reset">還原</button><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
+      ? `<div class="dpair"><button class="btn reset" data-a="undo"${S.undo && S.undo.length ? '' : ' disabled'}>上一步</button><button class="btn reset" data-a="reset">還原</button></div><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
       : `<button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw">${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>`}</div>` : '';
     const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
     const canReplay = pub.phase === 'play' && !S.replay && replaySteps().some((x) => x.changed);
@@ -4299,6 +4321,7 @@ if (typeof module !== 'undefined') {
       case 'chat': sendChat(); break;
       case 'sort-color': sortRack('color'); break;
       case 'sort-num': sortRack('num'); break;
+      case 'undo': undoStep(); break;
       case 'reset': resetWork(); break;
       case 'putmulti': moveMulti({ kind: 'board' }); break;
       case 'draw': drawAction(); break;

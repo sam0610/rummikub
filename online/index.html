@@ -3847,6 +3847,16 @@ if (typeof module !== 'undefined') {
       if (isMyTurn() && S.work) netEmit('draft', { n: S.pub.turnNo, board: S.work.board });
     }, 220);
   }
+  /* 從連號牌組中間抽走牌時,剩下的自動分成兩組(1-6 抽走 3 → 1,2 / 4,5,6) */
+  function splitRun(set, rm) {
+    const L = layoutSet(set);
+    if (!(L.valid && L.kind === 'run')) { const rest = set.filter((x) => !rm.has(x)); return rest.length ? [rest] : []; }
+    const order = L.ids;
+    const segs = []; let cur = [];
+    for (const id of order) { if (rm.has(id)) { if (cur.length) segs.push(cur); cur = []; } else cur.push(id); }
+    if (cur.length) segs.push(cur);
+    return segs;
+  }
   function moveTile(id, tgt) {
     const w = S.work;
     S.pendSnap = snapWork();
@@ -3858,7 +3868,7 @@ if (typeof module !== 'undefined') {
     if (fromBoard && !S.melded && !w.placed.has(id)) return fail('首次出牌不能動用桌面上原有的牌');
     if (tgt.kind === 'rack') {
       if (!w.placed.has(id)) return fail('桌面上原有的牌不能收回手牌');
-      w.board[si0] = w.board[si0].filter((x) => x !== id);
+      w.board.splice(si0, 1, ...splitRun(w.board[si0], new Set([id])));
       w.placed.delete(id);
       reorderRack(id, tgt.before);
     } else {
@@ -3869,7 +3879,7 @@ if (typeof module !== 'undefined') {
         if (!S.melded && ts.some((x) => !w.placed.has(x))) return fail('首次出牌不能把牌接到桌面原有的牌組');
         if (fromBoard && w.board[si0] === ts) { S.sel = null; render(); return; }
       }
-      if (fromBoard) w.board[si0] = w.board[si0].filter((x) => x !== id); else w.placed.add(id);
+      if (fromBoard) w.board.splice(si0, 1, ...splitRun(w.board[si0], new Set([id]))); else w.placed.add(id);
       if (ts) ts.push(id); else w.board.push([id]);
     }
     w.board = w.board.filter((s) => s.length > 0);
@@ -3912,7 +3922,7 @@ if (typeof module !== 'undefined') {
       if (!S.melded && ts.some((x) => !w.placed.has(x))) return fail('首次出牌不能把牌接到桌面原有的牌組');
     }
     const picked = new Set(ids);
-    w.board = w.board.map((s) => { if (s === ts) return s; return s.filter((x) => !picked.has(x)); });
+    w.board = w.board.flatMap((s) => (s === ts || !s.some((x) => picked.has(x)) ? [s] : splitRun(s, picked)));
     if (ts) { const keep = ts.filter((x) => !picked.has(x)); ts.length = 0; ts.push(...keep, ...ids); }
     else w.board.push(ids.slice());
     ids.forEach((id) => { if (S.rackOrder.includes(id)) w.placed.add(id); });

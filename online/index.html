@@ -4,7 +4,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@600;700&family=Orbitron:wght@700&family=Noto+Sans+TC:wght@400;500;700;900&display=swap">
-<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-app-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script><script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script><script>window.MK_FIREBASE_CONFIG={"apiKey":"AIzaSyDnY1uRvkMvuPbcgEBuAOCadppylg51Aps","authDomain":"game-online-aa5d2.firebaseapp.com","databaseURL":"https://game-online-aa5d2-default-rtdb.asia-southeast1.firebasedatabase.app","projectId":"game-online-aa5d2","storageBucket":"game-online-aa5d2.firebasestorage.app","messagingSenderId":"401530397913","appId":"1:401530397913:web:fe0d1475e4cf10233b4ac8"};</script>
 <style>
 /* 版面:頂列(標題、座位、按鈕)→ 最新動態列 → 牌桌 → 手牌托盤。紀錄/聊天為右側抽屜。
    風格:明亮簡約。冷灰底、白色扁平牌、螢光筆黃標示「輪到誰」。 */
@@ -2683,46 +2683,46 @@ var qrcode = function() {
     return qrcode;
 }));
 
-/* 網頁版連線層:用 PeerJS(WebRTC 點對點)模擬 Artifact 的 room 介面。
-   星形結構:房主開一個固定編號的 Peer,其他人連到房主;房主負責轉發訊息和維護在線名單。 */
+/* 網頁版連線層:用 Firebase Realtime Database 實作 room 介面。
+   房主仍是權威:玩家的 hello/act 只寫進房主的信箱,房主驗證後廣播 state、私下送 hand。
+   資料結構 rooms/<code>/{meta, peers/<peer>, inbox/<peer>/<id>, bc/<id>} */
 (function () {
   'use strict';
-  const PREFIX = 'mkgame-';
-  const PRIVATE = { hello: 1, act: 1 }; // 只給房主,不轉發給其他玩家
-  const ICE = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }, { urls: 'stun:stun1.l.google.com:19302' }, { urls: 'stun:stun.cloudflare.com:3478' }] };
+  const PRIVATE = { hello: 1, act: 1 };
   const clone = (x) => (x == null ? x : JSON.parse(JSON.stringify(x)));
-  const wait = (ms) => new Promise((r) => setTimeout(r, ms));
   const err = (code, message) => ({ code, message });
+  let fb = null, authP = null;
 
-  function newPeer(id) {
-    const P = window.Peer;
-    const opts = { debug: 0, config: ICE };
-    return id ? new P(id, opts) : new P(opts);
+  function init() {
+    if (fb) return fb;
+    const F = window.firebase, cfg = window.MK_FIREBASE_CONFIG;
+    if (!F || !cfg || !cfg.databaseURL) throw err('config', '尚未設定 Firebase,請先填入 firebase-config.json');
+    const app = F.apps && F.apps.length ? F.app() : F.initializeApp(cfg);
+    fb = { F, db: F.database(app), auth: F.auth(app) };
+    return fb;
   }
-  function openPeer(id, timeoutMs) {
-    return new Promise((resolve, reject) => {
-      let done = false, p;
-      const fin = (f, v) => { if (done) return; done = true; clearTimeout(t); f(v); };
-      const t = setTimeout(() => { try { p && p.destroy(); } catch (e) {} fin(reject, err('timeout', '連不上連線伺服器,請稍後再試')); }, timeoutMs || 12000);
-      try { p = newPeer(id); } catch (e) { return fin(reject, err('unavailable', '這個瀏覽器不支援線上連線')); }
-      p.on('open', () => fin(resolve, p));
-      p.on('error', (e) => {
-        try { p.destroy(); } catch (x) {}
-        fin(reject, e && e.type === 'unavailable-id' ? err('taken', '房間代碼已被使用') : err('server', '連不上連線伺服器,請稍後再試'));
-      });
+  function signIn() {
+    if (authP) return authP;
+    const { auth } = init();
+    authP = new Promise((resolve, reject) => {
+      const t = setTimeout(() => { authP = null; reject(err('timeout', '連不上連線伺服器,請稍後再試')); }, 12000);
+      const go = () => auth.signInAnonymously().then((c) => { clearTimeout(t); resolve(c.user.uid); }, (e) => { clearTimeout(t); authP = null; reject(err('auth', '登入失敗:' + (e && e.code ? e.code : '未知錯誤'))); });
+      go();
     });
+    return authP;
   }
+  const withTimeout = (p, ms, e) => new Promise((res, rej) => { const t = setTimeout(() => rej(e), ms); p.then((v) => { clearTimeout(t); res(v); }, (x) => { clearTimeout(t); rej(err('server', '連線伺服器拒絕了請求(' + (x && x.code ? x.code : '') + ')')); }); });
 
   async function join(name, opts) {
     const code = String(name || '').replace(/^mk-/, '').toLowerCase();
-    const hostId = PREFIX + code;
     const isHost = !!(opts && opts.host);
-    const handlers = {};
-    const peerLs = new Set(), connLs = new Set();
-    let myPres = {}, list = [], connected = false, closed = false, me = null;
-    let peer = null, conn = null, lastHost = Date.now();
-    const reg = new Map(); // 房主:label -> { presence, conn, seen, at }
-    const timers = [];
+    const { db } = init();
+    const uid = await signIn();
+    const room = db.ref('rooms/' + code);
+    const me = isHost ? uid + '-h' : uid + '-' + Math.random().toString(36).slice(2, 7);
+    const handlers = {}, peerLs = new Set(), connLs = new Set();
+    let myPres = {}, list = [], connected = false, closed = false, hostPeer = null;
+    const offs = [];
 
     const stamp = (e) => ({ peer: e.peer, presence: clone(e.presence) || {}, updatedAt: e.updatedAt || 0, by: null, isMe: e.peer === me, sameTab: e.peer === me, kind: 'viewer', guest: false });
     const peers = () => list.map(stamp);
@@ -2742,129 +2742,97 @@ var qrcode = function() {
       const base = { topic, data: clone(data), peer: from, by: null, isMe: from === me, sameTab: from === me, kind: 'viewer', guest: false };
       set.forEach((f) => { try { f(base); } catch (e) { console.error(e); } });
     }
-    const send = (c, msg) => { try { if (c && c.open) c.send(msg); } catch (e) {} };
 
-    /* ----- 房主 ----- */
-    function hostList() { return [...reg].map(([label, e]) => ({ peer: label, presence: e.presence, updatedAt: e.at })); }
-    function hostPush() {
-      const l = hostList();
-      setList(l);
-      for (const [label, e] of reg) if (e.conn) send(e.conn, { t: 'peers', list: l });
-    }
-    function hostRelay(topic, data, from, exceptLabel) {
-      const msg = { t: 'msg', topic, data, from };
-      const to = data && typeof data === 'object' ? data.toPeer : null;
-      if (to) { const e = reg.get(to); if (e && e.conn) send(e.conn, msg); return; }
-      if (PRIVATE[topic] && from !== me) return;
-      for (const [label, e] of reg) if (e.conn && label !== exceptLabel) send(e.conn, msg);
-    }
-    function dropClient(label) { const e = reg.get(label); if (!e) return; reg.delete(label); try { e.conn && e.conn.close(); } catch (x) {} hostPush(); }
-    function startHost() {
-      me = hostId;
-      reg.set(hostId, { presence: myPres, conn: null, seen: Date.now(), at: Date.now() });
-      connected = true;
-      peer.on('connection', (c) => {
-        c.on('open', () => {
-          const old = reg.get(c.peer);
-          if (old && old.conn && old.conn !== c) { try { old.conn.close(); } catch (x) {} }
-          reg.set(c.peer, { presence: old ? old.presence : {}, conn: c, seen: Date.now(), at: Date.now() });
-          hostPush();
-        });
-        c.on('data', (d) => {
-          const e = reg.get(c.peer);
-          if (!e || !d || e.conn !== c) return;
-          e.seen = Date.now();
-          if (d.t === 'pres') { e.presence = Object.assign({}, e.presence, d.patch || {}); for (const k of Object.keys(e.presence)) if (e.presence[k] === null) delete e.presence[k]; e.at = Date.now(); hostPush(); }
-          else if (d.t === 'emit') { deliver(d.topic, d.data, c.peer); hostRelay(d.topic, d.data, c.peer, c.peer); }
-        });
-        const gone = () => { const e = reg.get(c.peer); if (e && e.conn === c) dropClient(c.peer); };
-        c.on('close', gone); c.on('error', gone);
-      });
-      peer.on('disconnected', () => { if (!closed) { try { peer.reconnect(); } catch (e) {} } });
-      timers.push(setInterval(() => {
-        const now = Date.now();
-        for (const [label, e] of [...reg]) if (e.conn && now - e.seen > 15000) dropClient(label);
-        hostPush();
-      }, 5000));
-      setList(hostList());
-    }
-
-    /* ----- 玩家 ----- */
-    function clientDown() {
-      if (closed) return;
-      if (connected) { connected = false; fire(connLs, false); }
-      setList([{ peer: me, presence: myPres, updatedAt: Date.now() }]);
-      conn = null;
-    }
-    function clientConnect(first) {
-      return new Promise((resolve, reject) => {
-        let settled = false, c;
-        const ok = () => { if (!settled) { settled = true; resolve(); } };
-        const bad = (e) => { if (!settled) { settled = true; reject(e); } };
-        try { c = peer.connect(hostId, { reliable: true, serialization: 'json' }); } catch (e) { return bad(err('server', '連不上連線伺服器')); }
-        const to = setTimeout(() => { try { c.close(); } catch (x) {} bad(err('timeout', '找不到這個房間,請確認代碼,並確認房主正開著此頁')); }, 12000);
-        c.on('open', () => {
-          clearTimeout(to);
-          conn = c; connected = true; lastHost = Date.now();
-          send(c, { t: 'pres', patch: myPres });
-          fire(connLs, true);
-          ok();
-        });
-        c.on('data', (d) => {
-          if (!d) return;
-          lastHost = Date.now();
-          if (d.t === 'peers') setList(d.list || []);
-          else if (d.t === 'msg') deliver(d.topic, d.data, d.from);
-        });
-        const down = () => { clearTimeout(to); if (conn === c || !settled) { if (conn === c) clientDown(); bad(err('closed', '找不到這個房間,請確認代碼,並確認房主正開著此頁')); } };
-        c.on('close', down); c.on('error', down);
-      });
-    }
-    async function startClient() {
-      me = peer.id;
-      peer.on('error', (e) => { if (e && e.type === 'peer-unavailable') return; });
-      peer.on('disconnected', () => { if (!closed) { try { peer.reconnect(); } catch (e) {} } });
-      list = [{ peer: me, presence: myPres, updatedAt: Date.now() }];
-      await clientConnect(true);
-      timers.push(setInterval(() => { if (connected) send(conn, { t: 'ping' }); }, 4000));
-      timers.push(setInterval(async () => {
-        if (closed) return;
-        if (connected && Date.now() - lastHost > 15000) { try { conn.close(); } catch (e) {} clientDown(); }
-        if (!connected && !startClient.busy) {
-          startClient.busy = true;
-          try { await clientConnect(false); } catch (e) {} finally { startClient.busy = false; }
-        }
-      }, 3000));
-    }
-
-    /* ----- 開房 / 進房 ----- */
+    /* ----- 房間建立 / 驗證 ----- */
+    const metaRef = room.child('meta');
+    const meta = (await withTimeout(metaRef.once('value'), 12000, err('timeout', '連不上連線伺服器,請稍後再試'))).val();
     if (isHost) {
-      let lastErr = null;
-      const tries = opts && opts.resume ? 4 : 1;
-      for (let i = 0; i < tries; i++) {
-        try { peer = await openPeer(hostId); lastErr = null; break; } catch (e) { lastErr = e; if (e.code !== 'taken') break; await wait(3000); }
-      }
-      if (lastErr) throw lastErr;
-      startHost();
+      if (meta && meta.uid !== uid) throw err('taken', '房間代碼已被使用');
+      await withTimeout(metaRef.set({ uid, host: me, ts: Date.now() }), 12000, err('timeout', '連不上連線伺服器,請稍後再試'));
+      hostPeer = me;
+      // 清掉上次殘留的訊息
+      room.child('bc').remove().catch(() => {});
+      room.child('inbox/' + me).remove().catch(() => {});
     } else {
-      peer = await openPeer(null);
-      try { await startClient(); } catch (e) { try { peer.destroy(); } catch (x) {} throw e; }
+      if (!meta || !meta.host) throw err('closed', '找不到這個房間,請確認代碼,並確認房主正開著此頁');
+      hostPeer = meta.host;
     }
+
+    /* ----- 發送 ----- */
+    const push = (path, obj) => { try { return room.child(path).push(obj).catch(() => {}); } catch (e) {} };
+    function toInbox(peer, topic, data) { push('inbox/' + peer, { topic, data, from: me }); }
+    function toAll(topic, data, from) {
+      const ref = room.child('bc').push();
+      ref.set({ topic, data, from: from || me }).catch(() => {});
+      setTimeout(() => { try { ref.remove(); } catch (e) {} }, 20000);
+    }
+    function hostRelay(topic, data, from) {
+      const to = data && typeof data === 'object' ? data.toPeer : null;
+      if (to) { if (to !== me) toInbox(to, topic, data); return; }
+      if (PRIVATE[topic] && from !== me) return;
+      toAll(topic, data, from); // 各端用 from 過濾自己
+    }
+
+    /* ----- 接收 ----- */
+    const inboxRef = room.child('inbox/' + me);
+    const onInbox = inboxRef.on('child_added', (snap) => {
+      const m = snap.val(); try { snap.ref.remove(); } catch (e) {}
+      if (!m || closed) return;
+      deliver(m.topic, m.data, m.from);
+      if (isHost && m.from !== me) hostRelay(m.topic, m.data, m.from);
+    });
+    offs.push(() => inboxRef.off('child_added', onInbox));
+    if (!isHost) {
+      const bcRef = room.child('bc');
+      let lastKey = null;
+      try { const s = await withTimeout(bcRef.orderByKey().limitToLast(1).once('value'), 8000, err('timeout', '連線逾時')); s.forEach((c) => { lastKey = c.key; }); } catch (e) {}
+      const q = lastKey ? bcRef.orderByKey().startAfter(lastKey) : bcRef;
+      const onBc = q.on('child_added', (snap) => {
+        const m = snap.val();
+        if (!m || closed || m.from === me) return;
+        deliver(m.topic, m.data, m.from);
+      });
+      offs.push(() => q.off('child_added', onBc));
+    }
+
+    /* ----- 在線名單 ----- */
+    const myRef = room.child('peers/' + me);
+    const writeMe = () => { myRef.onDisconnect().remove(); return myRef.set({ presence: myPres, at: Date.now() }).catch(() => {}); };
+    const peersRef = room.child('peers');
+    const onPeersVal = peersRef.on('value', (snap) => {
+      const v = snap.val() || {};
+      const next = Object.keys(v).sort().map((k) => ({ peer: k, presence: (v[k] && v[k].presence) || {}, updatedAt: (v[k] && v[k].at) || 0 }));
+      setList(next);
+    });
+    offs.push(() => peersRef.off('value', onPeersVal));
+    const connRef = db.ref('.info/connected');
+    let first = true;
+    const onConn = connRef.on('value', (snap) => {
+      const on = !!snap.val();
+      if (on) writeMe();
+      if (on === connected && !first) return;
+      first = false;
+      connected = on;
+      fire(connLs, on);
+    });
+    offs.push(() => connRef.off('value', onConn));
+    connected = true; // 已成功讀寫過 meta
+    await writeMe();
 
     return {
       async emit(topic, data) {
         if (closed) return;
         const d = clone(data);
         deliver(topic, d, me);
-        if (isHost) hostRelay(topic, d, me, null);
-        else if (connected) send(conn, { t: 'emit', topic, data: d });
+        if (isHost) hostRelay(topic, d, me);
+        else toInbox(hostPeer, topic, d);
       },
       on(topic, fn) { (handlers[topic] = handlers[topic] || new Set()).add(fn); return () => handlers[topic] && handlers[topic].delete(fn); },
       async presence(patch) {
         myPres = Object.assign({}, myPres, patch || {});
         for (const k of Object.keys(myPres)) if (myPres[k] === null) delete myPres[k];
-        if (isHost) { const e = reg.get(hostId); if (e) { e.presence = myPres; e.at = Date.now(); } hostPush(); }
-        else { if (connected) send(conn, { t: 'pres', patch }); setList(list.map((p) => (p.peer === me ? { peer: me, presence: myPres, updatedAt: Date.now() } : p))); }
+        setList(list.map((p) => (p.peer === me ? { peer: me, presence: myPres, updatedAt: Date.now() } : p)));
+        await myRef.set({ presence: myPres, at: Date.now() }).catch(() => {});
       },
       peers,
       onPeers(fn) { peerLs.add(fn); return () => peerLs.delete(fn); },
@@ -2872,9 +2840,9 @@ var qrcode = function() {
       connected: () => connected,
       async leave() {
         closed = true;
-        timers.forEach(clearInterval);
-        try { for (const [, e] of reg) e.conn && e.conn.close(); conn && conn.close(); } catch (e) {}
-        try { peer && peer.destroy(); } catch (e) {}
+        offs.forEach((f) => { try { f(); } catch (e) {} });
+        try { await myRef.remove(); myRef.onDisconnect().cancel(); } catch (e) {}
+        try { inboxRef.remove(); } catch (e) {}
         for (const k of Object.keys(handlers)) handlers[k].clear();
       },
     };
@@ -4358,7 +4326,7 @@ if (typeof module !== 'undefined') {
   setInterval(() => { updateClock(); if (S.isHost) hostTick(); }, 500);
   render();
   (async () => {
-    try { S.roomNS = PLATFORM === 'web' ? (window.Peer && window.MkNet ? window.MkNet.ns : null) : (window.claude && window.claude.use ? await window.claude.use('room') : null); } catch (e) { S.roomNS = null; }
+    try { S.roomNS = PLATFORM === 'web' ? (window.firebase && window.MkNet ? window.MkNet.ns : null) : (window.claude && window.claude.use ? await window.claude.use('room') : null); } catch (e) { S.roomNS = null; }
     if (S.roomNS === undefined) S.roomNS = null;
     try {
       const r = (new URLSearchParams(location.search).get('r') || '').toUpperCase();

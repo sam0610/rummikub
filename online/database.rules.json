@@ -1,0 +1,30 @@
+{
+  "rules": {
+    ".read": false,
+    ".write": false,
+    "rooms": {
+      "$code": {
+        "meta": {
+          ".read": "auth != null",
+          ".write": "auth != null && (!data.exists() || data.child('uid').val() === auth.uid)",
+          ".validate": "newData.hasChildren(['uid','host'])"
+        },
+        "peers": {
+          ".read": "auth != null",
+          "$peer": { ".write": "auth != null && $peer.beginsWith(auth.uid)" }
+        },
+        "bc": {
+          ".read": "auth != null",
+          ".write": "auth != null && root.child('rooms/' + $code + '/meta/uid').val() === auth.uid"
+        },
+        "inbox": {
+          "$peer": {
+            ".read": "auth != null && $peer.beginsWith(auth.uid)",
+            ".write": "auth != null",
+            "$msg": { ".validate": "newData.val() == null || newData.hasChildren(['topic','from'])" }
+          }
+        }
+      }
+    }
+  }
+}

@@ -4156,7 +4156,7 @@ if (typeof module !== 'undefined') {
     const canDraw = my && pub.phase === 'play';
     const dirty = !!(my && c && c.dirty);
     const dockHTML = my && pub.phase === 'play' ? `<div class="dock">${S.msel.length > 1 ? `<button class="btn big newset-btn" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}${dirty
-      ? `<div class="dpair"><button class="btn reset" data-a="undo"${S.undo && S.undo.length ? '' : ' disabled'}>上一步</button><button class="btn reset" data-a="reset">還原</button></div><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
+      ? `<div class="dpair"><button class="btn reset" data-a="undo"${S.undo && S.undo.length ? '' : ' disabled'}>復原</button><button class="btn reset" data-a="reset">重設</button></div><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
       : `<button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw">${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>`}</div>` : '';
     const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
     const canReplay = pub.phase === 'play' && !S.replay && replaySteps().some((x) => x.changed);

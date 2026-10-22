@@ -3245,6 +3245,87 @@ function findBestMelds(handIds, byPoints, allowJokers) {
 
 const JOKER_HAND_LIMIT = 8;
 
+/* 從桌面牌組拿走一批牌後,剩下的是否全部合規;回傳剩下的各段(連號可能被拆成兩段),不合規回傳 null */
+function removeFromSet(s, rm) {
+  const a = analyzeSet(s);
+  if (!a) return null;
+  if (a.kind === 'group') {
+    const rest = s.filter((x) => !rm.has(x));
+    if (!rest.length) return [];
+    return analyzeSet(rest) ? [rest] : null;
+  }
+  const segs = [];
+  let cur = [];
+  for (const id of a.order) {
+    if (rm.has(id)) { if (cur.length) segs.push(cur); cur = []; } else cur.push(id);
+  }
+  if (cur.length) segs.push(cur);
+  return segs.every((x) => analyzeSet(x)) ? segs : null;
+}
+
+/* 手牌配合「可以從桌面借出的牌」組新牌組,盡量多打出手牌。回傳 {sets, borrowed, usedHand, boardAfter} 或 null */
+function findMeldsBorrow(hand, board) {
+  const cands = [];
+  board.forEach((s, si) => {
+    const a = analyzeSet(s);
+    if (!a) return;
+    for (const t of s) if (!T(t).j && removeFromSet(s, new Set([t]))) cands.push({ id: t, si });
+  });
+  if (!cands.length) return null;
+  const hst = Array.from({ length: 4 }, () => Array.from({ length: 14 }, () => []));
+  const bst = Array.from({ length: 4 }, () => Array.from({ length: 14 }, () => []));
+  for (const id of hand) if (!T(id).j) hst[T(id).c][T(id).n].push(id);
+  for (const c of cands) bst[T(c.id).c][T(c.id).n].push(c.id);
+  const hrem = hst.map((r) => r.map((a) => a.length)), brem = bst.map((r) => r.map((a) => a.length));
+  const siOf = new Map(cands.map((c) => [c.id, c.si]));
+  const tpl = templates().filter((t) => t.cells.every(([c, n]) => hrem[c][n] + brem[c][n] > 0) && t.cells.some(([c, n]) => hrem[c][n] > 0));
+  const build = (picks) => {
+    const hs = hst.map((r) => r.map((a) => a.slice())), bs = bst.map((r) => r.map((a) => a.slice()));
+    const sets = [], borrowed = new Set(), usedHand = [];
+    for (const i of picks) {
+      const set = [];
+      for (const [c, n] of tpl[i].cells) {
+        if (hs[c][n].length) { const id = hs[c][n].shift(); set.push(id); usedHand.push(id); } else { const id = bs[c][n].shift(); set.push(id); borrowed.add(id); }
+      }
+      sets.push(set);
+    }
+    return { sets, borrowed, usedHand };
+  };
+  const check = (picks) => {
+    const r = build(picks);
+    if (!r.borrowed.size || !r.usedHand.length) return null;
+    const bySet = new Map();
+    for (const id of r.borrowed) { const si = siOf.get(id); if (!bySet.has(si)) bySet.set(si, new Set()); bySet.get(si).add(id); }
+    const after = [];
+    for (let si = 0; si < board.length; si++) {
+      if (!bySet.has(si)) { after.push(board[si]); continue; }
+      const segs = removeFromSet(board[si], bySet.get(si));
+      if (!segs) return null;
+      after.push(...segs);
+    }
+    return { sets: r.sets, usedHand: r.usedHand, boardAfter: after };
+  };
+  let bestVal = -1, bestPicks = null, nodes = 0;
+  const picks = [];
+  function dfs(start, val) {
+    if (val > bestVal && picks.length && check(picks)) { bestVal = val; bestPicks = picks.slice(); }
+    if (nodes++ > 20000) return;
+    for (let i = start; i < tpl.length; i++) {
+      const cells = tpl[i].cells;
+      if (!cells.every(([c, n]) => hrem[c][n] + brem[c][n] > 0)) continue;
+      let hu = 0, bu = 0;
+      const took = [];
+      for (const [c, n] of cells) { if (hrem[c][n] > 0) { hrem[c][n]--; hu++; took.push([c, n, 0]); } else { brem[c][n]--; bu++; took.push([c, n, 1]); } }
+      picks.push(i);
+      dfs(i, val + hu * 1000 - bu * 2 + tpl[i].pts * 0.01);
+      picks.pop();
+      for (const [c, n, k] of took) { if (k) brem[c][n]++; else hrem[c][n]++; }
+    }
+  }
+  dfs(0, 0);
+  return bestPicks ? check(bestPicks) : null;
+}
+
 /* 電腦出牌計畫:回傳 {board, placed} 或 null(抽牌) */
 function botPlan(hand, board, melded, minInitial) {
   const b = board.map((s) => s.slice());
@@ -3337,6 +3418,15 @@ function botPlan(hand, board, melded, minInitial) {
     }
     return false;
   };
+  // 同時從幾個牌組借牌,配合手牌組成新牌組(例如藍2 + 從別組借藍3、藍4)
+  const borrowMultiOnce = () => {
+    const r = findMeldsBorrow(h, b);
+    if (!r) return false;
+    b.length = 0;
+    b.push(...r.boardAfter, ...r.sets);
+    take(r.usedHand);
+    return true;
+  };
   const extendOnce = (onlyJokers) => {
     let changed = false;
     for (let k = 0; k < h.length; ) {
@@ -3354,6 +3444,7 @@ function botPlan(hand, board, melded, minInitial) {
     if (extendOnce(false)) changed = true;
     if (!changed) changed = borrowOnce();
     if (!changed) changed = splitOnce();
+    if (!changed) changed = borrowMultiOnce();
     if (!changed) changed = jokerSwapOnce();
     if (!changed) break;
   }
@@ -3398,7 +3489,7 @@ function movedTiles(prev, cur) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, findBestMelds, shuffle, setKey, movedTiles };
+  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, findBestMelds, findMeldsBorrow, shuffle, setKey, movedTiles };
 }
 
 

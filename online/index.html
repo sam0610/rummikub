@@ -240,6 +240,8 @@ select.field { width: auto; }
 .sizer .btn.small { min-width: 30px; padding: 0 0.5em; }
 .sidebtns .sizer { margin-right: auto; }
 
+.dock { min-width: 0; }
+.dock .btn { min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .dpair { display: flex; gap: 6px; min-height: 0; }
 .dpair .btn { height: auto !important; flex: 1 1 0; min-width: 0; padding-left: 0.2em; padding-right: 0.2em; font-size: 14px; white-space: nowrap; }
 .dpair .btn:disabled { opacity: 0.45; }
@@ -250,6 +252,7 @@ select.field { width: auto; }
 .deck.flash { animation: dkFlash 0.9s ease-in-out 3; }
 @keyframes dkFlash { 0%, 100% { box-shadow: 0 0 0 3px var(--hl); } 50% { box-shadow: 0 0 0 10px var(--hl); } }
 @media (prefers-reduced-motion: reduce) { .deck.flash { animation: none; } .turnbanner { animation-duration: 0.01s; animation-delay: 0s !important; opacity: 1; } }
+.tile[data-g]::after { content: attr(data-g); position: absolute; top: -7px; left: -5px; z-index: 3; min-width: 17px; height: 17px; padding: 0 4px; border-radius: 99px; background: var(--ink); color: #fff; font-size: 11px; font-weight: 800; line-height: 17px; text-align: center; }
 .btn.newset-btn { background: var(--ink); border-color: var(--ink); color: #fff; }
 .rack { display: flex; flex-wrap: wrap; gap: 6px; padding: 10px 2px 10px; min-height: calc(var(--tw) * 1.32 + 16px); max-height: calc(var(--tw) * 1.32 * 3 + 50px); overflow: auto; align-content: flex-start; }
 .rack.hot { outline: 2px solid var(--ink); outline-offset: 2px; border-radius: 12px; }
@@ -431,7 +434,7 @@ select.field { width: auto; }
   .status .meter { flex: 0 0 auto; }
   .status .actions { flex: 0 0 auto; }
   .status .actions .btn { min-height: 28px; font-size: 12.5px; }
-  .rack { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: calc(var(--tw) * 1.32 * 3 + 40px); align-content: flex-start; padding: 6px 2px 8px; -webkit-overflow-scrolling: touch; }
+  .rack { flex-wrap: wrap; overflow-x: hidden; overflow-y: auto; max-height: calc(var(--tw) * 1.32 * 3 + 52px); align-content: flex-start; padding: 14px 2px 8px; -webkit-overflow-scrolling: touch; }
   .rack .tile { flex: none; }
 }
 @media (min-width: 561px) and (max-width: 1000px) {
@@ -3416,7 +3419,7 @@ if (typeof module !== 'undefined') {
   const S = {
     tok: LS.get('mk-tok') || (() => { const t = rid(24); LS.set('mk-tok', t); return t; })(),
     name: LS.get('mk-name') || '',
-    sound: LS.get('mk-snd') !== '0', turnFlash: 0,
+    sound: LS.get('mk-snd') !== '0', turnFlash: 0, groups: [],
     k: (() => { const v = parseFloat(LS.get('mk-k')); return v >= 0.7 && v <= 1.5 ? v : 1; })(),
     roomNS: undefined, room: null, code: null, isHost: false, busy: '',
     G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [],
@@ -3790,11 +3793,11 @@ if (typeof module !== 'undefined') {
           if (mv) S.hist.push({ id: mv.id, name: mv.name, before: prev.board, after: pub.board, changed, msg: n > 0 ? `${mv.name} 打出 ${n} 張牌` : changed ? `${mv.name} 重新整理了桌面` : `${mv.name} 抽了一張牌` });
           if (S.hist.length > 12) S.hist.shift();
         } else S.hist = [];
-        S.turnStart = Date.now(); S.draft = null; S.sel = null; S.msel = []; S.assist = null; S.hint = null; S.drawArmed = false; S.replay = null;
+        S.turnStart = Date.now(); S.draft = null; S.sel = null; S.msel = []; S.groups = []; S.assist = null; S.hint = null; S.drawArmed = false; S.replay = null;
         S.undo = []; S.work = isMyTurn() ? { board: pub.board.map((s) => s.slice()), placed: new Set() } : null;
         if (S.work && !(prev && prev.phase === 'play' && prev.turnNo === pub.turnNo)) notifyTurn(); else S.turnFlash = 0;
       }
-    } else { S.hist = []; S.work = null; S.sel = null; S.msel = []; if (pub.phase === 'end' && (!prev || prev.phase !== 'end')) S.hideResult = false; }
+    } else { S.hist = []; S.work = null; S.sel = null; S.msel = []; S.groups = []; if (pub.phase === 'end' && (!prev || prev.phase !== 'end')) S.hideResult = false; }
     const logs = pub.log || [];
     if (logs.length && logs[logs.length - 1].k < S.lastK) S.lastK = 0; // 新局重置
     for (const e of logs) if (e.k > S.lastK) { S.feed.push({ m: e.m }); S.lastK = e.k; }
@@ -3867,7 +3870,7 @@ if (typeof module !== 'undefined') {
     if (!isMyTurn() || !S.work || !S.undo || !S.undo.length) return;
     const o = JSON.parse(S.undo.pop());
     S.work = { board: o.b, placed: new Set(o.p) }; S.rackOrder = o.r;
-    S.sel = null; S.msel = []; S.drawArmed = false; S.pendSnap = null;
+    S.sel = null; S.msel = []; S.groups = []; S.drawArmed = false; S.pendSnap = null;
     S.assist = null; S.hint = null; render(); scheduleDraft();
   }
   function scheduleDraft() {
@@ -3916,6 +3919,16 @@ if (typeof module !== 'undefined') {
     S.sel = null; S.drawArmed = false;
     changed();
   }
+  /* 一次把已選好的幾組合規牌組擺到桌面;最後一組若不合規就取消那次選擇 */
+  function putGroups() {
+    const gs = S.groups.map((g) => g.slice());
+    if (S.msel.length) { if (analyzeSet(S.msel)) gs.push(S.msel.slice()); else say('未完成的選擇不是合規牌組,已取消'); }
+    S.groups = []; S.msel = [];
+    if (!gs.length) { render(); return; }
+    for (const g of gs) { S.msel = g; moveMulti({ kind: 'board' }); }
+    S.msel = []; S.groups = [];
+    render();
+  }
   /* 依點選順序判斷:同色連號(可由小到大或由大到小),或同數字不同色(最多 4 張)。百搭可當任何一張。 */
   function canCombine(ids) {
     const ts = ids.map(T);
@@ -3940,7 +3953,7 @@ if (typeof module !== 'undefined') {
     S.pendSnap = snapWork();
     const onBoard = (id) => !!w && w.board.some((x) => x.includes(id));
     const ids = S.msel.filter((id) => onBoard(id) || (S.rackOrder.includes(id) && !(w && w.placed.has(id))));
-    const fail = (msg) => { if (msg) say(msg); S.msel = []; render(); };
+    const fail = (msg) => { if (msg) say(msg); S.msel = []; S.groups = []; render(); };
     if (!ids.length) return fail();
     if (!isMyTurn() || !w) return fail('還沒輪到你');
     if (tgt.kind === 'rack') return fail();
@@ -3957,7 +3970,7 @@ if (typeof module !== 'undefined') {
     else w.board.push(ids.slice());
     ids.forEach((id) => { if (S.rackOrder.includes(id)) w.placed.add(id); });
     w.board = w.board.filter((s) => s.length > 0);
-    S.msel = []; S.sel = null; S.drawArmed = false;
+    S.msel = []; S.groups = []; S.sel = null; S.drawArmed = false;
     changed();
   }
   /* ---------- 智能建議 ---------- */
@@ -4000,7 +4013,7 @@ if (typeof module !== 'undefined') {
     if (!a || !a.sug.ok || !isMyTurn()) return;
     S.pendSnap = snapWork();
     S.work = { board: a.sug.plan.board.map((x) => x.slice()), placed: new Set(a.sug.placed) };
-    S.sel = null; S.msel = []; S.drawArmed = false;
+    S.sel = null; S.msel = []; S.groups = []; S.drawArmed = false;
     changed();
   }
   function assistHTML() {
@@ -4051,8 +4064,9 @@ if (typeof module !== 'undefined') {
     const t = T(id);
     const cls = (o.sel ? ' sel' : '') + (o.mine ? ' mine' : '') + (o.recent ? ' recent' : '') + (o.moved ? ' moved' : '') + (o.fresh ? ' fresh' : '') + (o.hint ? ' sug' : '') + (o.drag ? ' dragging' : '') + (o.gap ? ' gap' : '');
     const st = o.i != null ? ` style="--i:${o.i}"` : '';
-    if (t.j) return `<div class="tile joker ${id === 104 ? 'jr' : 'jk'}${cls}" data-id="${id}"${st}><svg class="smile" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16.5" fill="none" stroke="currentColor" stroke-width="3.4"/><circle cx="14" cy="16" r="2.8" fill="currentColor"/><circle cx="26" cy="16" r="2.8" fill="currentColor"/><path d="M11.5 24.5 q8.5 8 17 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>${o.jv ? `<s>${o.jv}</s>` : ''}</div>`;
-    return `<div class="tile c${t.c}${cls}" data-id="${id}"${st}><b>${t.n}</b></div>`;
+    const gb = o.g ? ` data-g="${o.g}"` : '';
+    if (t.j) return `<div class="tile joker ${id === 104 ? 'jr' : 'jk'}${cls}" data-id="${id}"${st}${gb}><svg class="smile" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16.5" fill="none" stroke="currentColor" stroke-width="3.4"/><circle cx="14" cy="16" r="2.8" fill="currentColor"/><circle cx="26" cy="16" r="2.8" fill="currentColor"/><path d="M11.5 24.5 q8.5 8 17 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>${o.jv ? `<s>${o.jv}</s>` : ''}</div>`;
+    return `<div class="tile c${t.c}${cls}" data-id="${id}"${st}${gb}><b>${t.n}</b></div>`;
   }
   const dragId = () => (drag && drag.active ? drag.id : null);
 
@@ -4180,6 +4194,8 @@ if (typeof module !== 'undefined') {
       const an = rackSel.length >= 3 ? analyzeSet(rackSel) : null;
       selPts = an ? an.score : rackSel.reduce((a, id) => a + (T(id).j ? 0 : T(id).n), 0);
     }
+    const grpPts = S.groups.reduce((a, g) => a + (analyzeSet(g) ? analyzeSet(g).score : 0), 0);
+    selPts += grpPts;
     const pts = placedPts + selPts;
     const meter = my && !S.melded ? `<div class="meter${pts >= need ? ' done' : ''}"><span>首次出牌</span><div class="bar"><i style="width:${Math.min(100, Math.round((pts / need) * 100))}%"></i></div><span><b>${pts}</b>/${need}${selPts ? `<small> (含已選 ${selPts})</small>` : ''}</span></div>` : '';
     const timer = pub.settings.timer > 0 && pub.phase === 'play' ? `<span>剩餘 <b id="clock" class="num"></b></span>` : '';
@@ -4195,7 +4211,7 @@ if (typeof module !== 'undefined') {
     const feed = S.feed.map((f) => f.chat ? `<div class="chat"><b>${esc(f.name)}</b> ${esc(f.m)}</div>` : `<div class="${/抽了一張牌|抽一張牌|無牌可抽/.test(f.m) ? 'dim' : /打出/.test(f.m) ? 'play' : ''}">${esc(f.m)}</div>`).join('');
     const canDraw = my && pub.phase === 'play';
     const dirty = !!(my && c && c.dirty);
-    const dockHTML = my && pub.phase === 'play' ? `<div class="dock">${S.msel.length > 1 ? `<button class="btn big newset-btn" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}${dirty
+    const dockHTML = my && pub.phase === 'play' ? `<div class="dock">${S.groups.length ? `<button class="btn big newset-btn" data-a="putgroups">出牌 ${S.groups.length + (S.msel.length && analyzeSet(S.msel) ? 1 : 0)} 組</button>` : S.msel.length > 1 ? `<button class="btn big newset-btn" data-a="putmulti">新牌組(${S.msel.length})</button>` : ''}${dirty
       ? `<div class="dpair"><button class="btn reset" data-a="undo"${S.undo && S.undo.length ? '' : ' disabled'}>復原</button><button class="btn reset" data-a="reset">重設</button></div><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
       : `<button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw">${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>`}</div>` : '';
     const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
@@ -4219,7 +4235,7 @@ if (typeof module !== 'undefined') {
           <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
         ${assistHTML()}
         <div class="rackwrap">
-        <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id), fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div></div>
+        <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id) || S.groups.some((g) => g.includes(id)), g: S.groups.findIndex((g) => g.includes(id)) + 1, fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div></div>
         ${dockHTML}
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
@@ -4368,6 +4384,7 @@ if (typeof module !== 'undefined') {
       case 'undo': undoStep(); break;
       case 'reset': resetWork(); break;
       case 'putmulti': moveMulti({ kind: 'board' }); break;
+      case 'putgroups': putGroups(); break;
       case 'draw': drawAction(); break;
       case 'assist': doAssist(); break;
       case 'assistApply': applyAssist(); break;
@@ -4445,11 +4462,14 @@ if (typeof module !== 'undefined') {
     const loc = locate(id);
     if (isMyTurn()) {
       if (loc.where === 'rack') {
+        const gi = S.groups.findIndex((g) => g.includes(id));
+        if (gi >= 0) { S.groups.splice(gi, 1); render(); return; } // 點已選好的組 = 取消該組
         if (S.msel.length) {
           const i = S.msel.indexOf(id);
           if (i >= 0) S.msel.splice(i, 1);
           else if (canCombine(S.msel.concat(id))) S.msel.push(id);
-          else { S.msel = []; S.sel = id; say('這張牌和已選的牌組不成一組,改為只選這張'); }
+          else if (analyzeSet(S.msel)) { S.groups.push(S.msel.slice()); S.msel.length = 0; S.sel = id; say(`已選 ${S.groups.length} 組,繼續選下一組`); }
+          else { S.msel.length = 0; S.sel = id; say('剛才選的牌不是合規牌組,已取消選擇'); }
           render(); return;
         }
         if (S.sel != null && S.sel !== id && locate(S.sel).where === 'rack') {

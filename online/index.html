@@ -4378,11 +4378,16 @@ if (typeof module !== 'undefined') {
     const b = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(t));
     return [...new Uint8Array(b)].map((x) => x.toString(16).padStart(2, '0')).join('');
   }
-  function gateHTML() {
-    return `<div class="gate"><div class="gcard"><div class="gt">魔橋</div><p>請輸入密碼才能繼續使用</p>
+  function pwModalHTML() {
+    return `<div class="overlay" data-a="closePw"><div class="gcard" data-keep="1"><div class="gt">魔橋</div><p>開新遊戲或房間需要密碼</p>
       <input id="inPw" class="field" type="password" inputmode="numeric" autocomplete="off" placeholder="密碼" maxlength="20">
       <div class="gerr">${esc(S.pwErr)}</div>
-      <button class="btn primary" data-a="unlock">進入</button></div></div>`;
+      <div class="row"><button class="btn" data-a="closePw">取消</button><span class="grow"></span><button class="btn primary" data-a="unlock">確定</button></div></div></div>`;
+  }
+  function guardNew(fn) {
+    if (S.unlocked) { fn(); return; }
+    S.pendingAct = fn; S.pwErr = ''; S.modal = 'pw'; render();
+    const e = $('#inPw'); if (e) e.focus();
   }
   async function tryUnlock() {
     const el = $('#inPw');
@@ -4390,8 +4395,9 @@ if (typeof module !== 'undefined') {
     try {
       if (!window.crypto || !crypto.subtle) { S.pwErr = '這個瀏覽器無法驗證密碼,請改用 https 連線'; render(); return; }
       if ((await sha256Hex('mk-gate:' + v)) === PW_HASH) {
-        S.unlocked = true; S.pwErr = ''; LS.set('mk-unlock', PW_HASH); render();
-        if (S.invite && S.name && S.name.trim()) joinRoom(S.invite).then(() => { S.invite = null; });
+        S.unlocked = true; S.pwErr = ''; S.modal = null; LS.set('mk-unlock', PW_HASH);
+        const f = S.pendingAct; S.pendingAct = null; render();
+        if (f) f();
         return;
       }
     } catch (e) {}
@@ -4408,7 +4414,8 @@ if (typeof module !== 'undefined') {
     const aid = ae && ae.id && vals[ae.id] !== undefined ? ae.id : null;
     const pos = aid ? ae.selectionStart : 0;
     const mRules = S.modal === 'rules' ? rulesHTML() : '';
-    app.innerHTML = !S.unlocked ? gateHTML() : !S.pub ? lobbyHTML() + mRules : S.pub.phase === 'wait' ? waitHTML() + mRules : gameHTML();
+    const mPw = S.modal === 'pw' ? pwModalHTML() : '';
+    app.innerHTML = !S.pub ? lobbyHTML() + mRules + mPw : S.pub.phase === 'wait' ? waitHTML() + mRules : gameHTML();
     for (const id in vals) { const e = document.getElementById(id); if (e) e.value = vals[id]; }
     if (aid) { const e = document.getElementById(aid); if (e) { e.focus(); try { e.setSelectionRange(pos, pos); } catch (er) {} } }
     const b = $('#board'), r = $('#rack'), l = $('.lobby'), f = $('#feed');
@@ -4455,7 +4462,7 @@ if (typeof module !== 'undefined') {
   app.addEventListener('click', (e) => {
     const a = e.target.closest('[data-a]');
     if (a) {
-      if (a.dataset.a === 'closeRules' && e.target.closest('[data-keep]') && !e.target.closest('button')) return;
+      if ((a.dataset.a === 'closeRules' || a.dataset.a === 'closePw') && e.target.closest('[data-keep]') && !e.target.closest('button')) return;
       doAction(a.dataset.a, a);
       return;
     }
@@ -4482,8 +4489,9 @@ if (typeof module !== 'undefined') {
       case 'setAssist': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.assist = el.dataset.n === '1'; hostBroadcast(); } break;
       case 'soloTimer': S.soloTimer = +el.dataset.n; render(); break;
       case 'bots': S.soloBots = +el.dataset.n; render(); break;
-      case 'solo': startSolo(); break;
-      case 'create': createRoom(); break;
+      case 'solo': guardNew(startSolo); break;
+      case 'create': guardNew(createRoom); break;
+      case 'closePw': S.modal = null; S.pendingAct = null; render(); break;
       case 'join': joinRoom(($('#inCode') || {}).value); break;
       case 'resume': resumeHost(); break;
       case 'rules': S.modal = 'rules'; render(); break;
@@ -4632,7 +4640,7 @@ if (typeof module !== 'undefined') {
       if (PLATFORM === 'web' && /^[A-Z0-9]{4}$/.test(r) && S.roomNS && !readSaved()) {
         S.invite = r;
         history.replaceState(null, '', location.pathname);
-        if (S.unlocked && S.name && S.name.trim()) { render(); joinRoom(r).then(() => { S.invite = null; }); return; }
+        if (S.name && S.name.trim()) { render(); joinRoom(r).then(() => { S.invite = null; }); return; }
       }
     } catch (e) {}
     render();

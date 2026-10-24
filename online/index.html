@@ -3988,6 +3988,17 @@ if (typeof module !== 'undefined') {
     if (cur.length) segs.push(cur);
     return segs;
   }
+  /* 把和牌組內重複的牌(同色同數字)放進連號中間時,自動從那裡拆成兩組:1-8 放進 3 → 1,2,3 / 3,4,5,6,7,8 */
+  function dupSplit(set, id) {
+    const t = T(id);
+    if (t.j) return null;
+    const a = analyzeSet(set);
+    if (!a || a.kind !== 'run') return null;
+    const p = a.order.findIndex((x) => !T(x).j && T(x).c === t.c && T(x).n === t.n);
+    if (p < 0) return null;
+    const left = a.order.slice(0, p + 1), right = [id, ...a.order.slice(p + 1)];
+    return analyzeSet(left) && analyzeSet(right) ? [left, right] : null;
+  }
   function moveTile(id, tgt) {
     const w = S.work;
     S.pendSnap = snapWork();
@@ -4011,7 +4022,9 @@ if (typeof module !== 'undefined') {
         if (fromBoard && w.board[si0] === ts) { S.sel = null; render(); return; }
       }
       if (fromBoard) w.board.splice(si0, 1, ...splitRun(w.board[si0], new Set([id]))); else w.placed.add(id);
-      if (ts) ts.push(id); else w.board.push([id]);
+      const dsp = ts ? dupSplit(ts, id) : null;
+      if (dsp) w.board.splice(w.board.indexOf(ts), 1, ...dsp);
+      else if (ts) ts.push(id); else w.board.push([id]);
     }
     w.board = w.board.filter((s) => s.length > 0);
     S.sel = null; S.drawArmed = false;
@@ -4064,8 +4077,12 @@ if (typeof module !== 'undefined') {
     }
     const picked = new Set(ids);
     w.board = w.board.flatMap((s) => (s === ts || !s.some((x) => picked.has(x)) ? [s] : splitRun(s, picked)));
-    if (ts) { const keep = ts.filter((x) => !picked.has(x)); ts.length = 0; ts.push(...keep, ...ids); }
-    else w.board.push(ids.slice());
+    if (ts) {
+      const keep = ts.filter((x) => !picked.has(x));
+      const dsp = ids.length === 1 ? dupSplit(keep, ids[0]) : null;
+      if (dsp) w.board.splice(w.board.indexOf(ts), 1, ...dsp);
+      else { ts.length = 0; ts.push(...keep, ...ids); }
+    } else w.board.push(ids.slice());
     ids.forEach((id) => { if (S.rackOrder.includes(id)) w.placed.add(id); });
     w.board = w.board.filter((s) => s.length > 0);
     S.msel = []; S.groups = []; S.sel = null; S.drawArmed = false;

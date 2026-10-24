@@ -3997,7 +3997,7 @@ if (typeof module !== 'undefined') {
     const p = a.order.findIndex((x) => !T(x).j && T(x).c === t.c && T(x).n === t.n);
     if (p < 0) return null;
     const left = a.order.slice(0, p + 1), right = [id, ...a.order.slice(p + 1)];
-    return analyzeSet(left) && analyzeSet(right) ? [left, right] : null;
+    return analyzeSet(left) || analyzeSet(right) ? [left, right] : null;
   }
   function moveTile(id, tgt) {
     const w = S.work;

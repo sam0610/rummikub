@@ -204,7 +204,6 @@ select.field { width: auto; }
 .set.mine .tag { background: var(--hl); color: var(--ink); }
 .set.bad .tag { background: #fde4e1; color: var(--bad); }
 .set .tag b { font-family: var(--num); font-size: 13px; color: inherit; }
-.plus { align-self: stretch; display: flex; align-items: center; justify-content: center; min-width: calc(var(--tw) * 0.8); margin-left: 2px; padding: 0; border: 2px dashed #1f9d6b; border-radius: 10px; background: rgba(31, 157, 107, 0.08); color: #1f9d6b; font-size: calc(var(--tw) * 0.5); font-weight: 700; line-height: 1; cursor: pointer; }
 .newset { align-self: flex-start; display: flex; align-items: center; justify-content: center; min-width: calc(var(--tw) * 2.2); height: calc(var(--tw) * 1.32 + 18px); border: 1.5px dashed #a9b3c5; border-radius: 14px; color: var(--muted); font-size: 13px; padding: 0 14px; }
 .deck { display: flex; flex-direction: column; gap: 10px; padding: 12px 14px 12px; border-radius: 22px; background: var(--tray); border: 1.5px solid transparent; min-width: 0; }
 .deck.mine { border-color: var(--ink); box-shadow: 0 0 0 3px var(--hl); }
@@ -4283,7 +4282,6 @@ if (typeof module !== 'undefined') {
     const prevKeys = S.prevBoard ? new Set(S.prevBoard.map(setKey)) : null;
     const movedIds = S.prevBoard ? movedTiles(S.prevBoard, pub.board) : new Set();
     const sel = S.sel, dg = dragId();
-    const showPlus = my && pub.phase === 'play' && (S.sel != null || S.msel.length > 0);
     const setsHTML = board.map((s, si) => {
       const L = layoutSet(s);
       const locked = my && !S.melded && w && s.some((x) => !w.placed.has(x));
@@ -4295,7 +4293,7 @@ if (typeof module !== 'undefined') {
         mine: my && w ? w.placed.has(id) : false,
         recent: recent.has(id) || (!my && S.draft && !oldIds.has(id)),
         moved: chg && movedIds.has(id) && !recent.has(id),
-      })).join('')}${showPlus && !(S.sel != null && s.includes(S.sel)) && !(S.msel.length && S.msel.every((x) => s.includes(x))) ? `<button class="plus" data-a="plusset" data-si="${si}" aria-label="放入這一組">＋</button>` : ''}</div>`;
+      })).join('')}</div>`;
     }).join('');
     const rackIds = S.rackOrder.filter((id) => !(w && w.placed.has(id)));
     const st = statusLine();
@@ -4387,7 +4385,7 @@ if (typeof module !== 'undefined') {
       <div><h3>回合</h3><ul><li>開局每人 14 張。第一次出牌,打出的新牌組點數合計要有 30 點以上,而且只能用自己的牌,不能動桌面上的牌。</li><li>開局之後,可以接牌、拆開、重組桌面上所有牌組,只要回合結束時每一組都合規則。桌面上的牌不能收回手牌。</li><li>打不出牌時抽 1 張,回合結束。</li></ul></div>
       <div><h3>百搭牌</h3><p>可以代替任何顏色和數字。桌面上的百搭牌可以用手上正確的牌換出來,換出的百搭牌要在同一回合內用到別的牌組。</p></div>
       <div><h3>計分</h3><p>勝者得到其他人手牌點數的總和,其他人各扣自己的剩餘點數,百搭牌剩在手上算 30 點。牌堆抽完且沒有人能出牌時,剩餘點數最少者獲勝。</p></div>
-      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>桌面多選:先點桌面上的一張牌,再點另一張牌;如果兩張能成組(同色連號,或同數字不同色),就會自動變成多選,可以繼續點(也可以點同一組內的牌,例如從順子中取出連續幾張,或跨組選牌),按「新牌組」組成新牌組,或點某個牌組放進去。如果兩張不成組,就是把前一張牌移到後一張所在的牌組。選了牌之後,每個牌組尾會出現綠色虛線「＋」,點它就把選中的牌放入該組(不論能否連起來)。首次出牌前不能動用桌面上原有的牌。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,浮起並帶綠光的是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議(開局前可選擇關閉):輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
+      <div><h3>操作</h3><ul><li>拖曳:把牌拖到桌面某一組上就加入那一組,拖到空白處就新開一組,拖回手牌區可收回本回合打出的牌。</li><li>點選:先點一張牌,再點目標牌組(或牌組裡的任一張牌、桌面空白處、手牌區)。</li><li>多選:直接在手牌連續點選多張牌(例如同色 1、2、3 或不同色 6、6、6),必須依序點選(同色連號,或同數字不同色),點錯順序就會改選那一張;選好後按「放成新牌組」,或點目標牌組、桌面空白處一次放下,也可以直接拖曳。</li><li>桌面多選:先點桌面上的一張牌,再點另一張牌;如果兩張在同一組內且能成組(同色連號,或同數字不同色),就會自動變成多選,可以繼續點同一組內的牌(例如從順子中取出連續幾張),按「新牌組」組成新牌組,或點某個牌組放進去。如果兩張不成組,就是把前一張牌移到後一張所在的牌組。桌面多選只限同一組內:選了牌之後,點另一組的任何一張牌,就把選中的牌放入該組(不論能否連起來)。首次出牌前不能動用桌面上原有的牌。</li><li>手牌上帶黃框和「新」字的是剛抽到的牌;對手上一手的改動會在桌面標出:綠色框是有變動的牌組,浮起並帶綠光的是新打出的牌,綠色虛線是被移到別組的舊牌。</li><li>智能建議(開局前可選擇關閉):輪到你時按「智能建議」,程式會算出這回合能不能出牌、怎樣出,手牌上用綠色虛線框標出要用的牌,再按「照建議擺牌」就會自動擺好(你仍然可以修改,滿意了才按完成回合)。</li><li>牌下方的黃色底線是本回合你打出的牌,紅色虛線框表示該組還不合規則。</li></ul></div>
       <div class="row"><span class="grow"></span><button class="btn primary" data-a="closeRules">知道了</button></div></div></div>`;
   }
 
@@ -4537,7 +4535,6 @@ if (typeof module !== 'undefined') {
       case 'undo': undoStep(); break;
       case 'reset': resetWork(); break;
       case 'putmulti': moveMulti({ kind: 'board' }); break;
-      case 'plusset': { const si = +el.dataset.si; if (S.msel.length) moveMulti({ kind: 'set', si }); else if (S.sel != null) moveTile(S.sel, { kind: 'set', si }); break; }
       case 'putgroups': putGroups(); break;
       case 'draw': drawAction(); break;
       case 'assist': doAssist(); break;
@@ -4633,12 +4630,14 @@ if (typeof module !== 'undefined') {
         }
       } else {
         const boardMulti = S.msel.length && S.msel.some((x) => locate(x).where === 'board');
+        const sameSet = (x) => { const l = locate(x); return l.where === 'board' && l.si === loc.si; };
         if (boardMulti) {
           const i = S.msel.indexOf(id);
           if (i >= 0) { S.msel.splice(i, 1); render(); return; }
-          if (canCombine(S.msel.concat(id))) { S.msel.push(id); render(); return; }
-        } else if (!S.msel.length && S.sel != null && S.sel !== id && locate(S.sel).where === 'board' && canCombine([S.sel, id])) {
-          S.msel = [S.sel, id]; S.sel = null; render(); return;
+          if (S.msel.every(sameSet) && canCombine(S.msel.concat(id))) { S.msel.push(id); render(); return; }
+        } else if (!S.msel.length && S.sel != null && S.sel !== id && locate(S.sel).where === 'board' && sameSet(S.sel)) {
+          if (canCombine([S.sel, id])) { S.msel = [S.sel, id]; S.sel = null; } else { S.sel = id; }
+          render(); return;
         }
         if (S.msel.length) { moveMulti({ kind: 'set', si: loc.si }); return; }
       }

@@ -455,6 +455,22 @@ select.field { width: auto; }
   .top .menubtn { order: 1; }
   .top .strip { order: 5; flex: 1 1 100%; min-width: 0; }
 }
+.morewrap { display: none; position: relative; flex: none; }
+.moremenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 200px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 28px rgba(21, 26, 36, 0.22); }
+.moremenu .btn { width: 100%; justify-content: center; }
+.moremenu .mmrow .sizer { width: 100%; justify-content: space-between; }
+.btn.morebtn.on { background: var(--ink); color: #fff; border-color: var(--ink); }
+.moremenu .sizer .szl { white-space: nowrap; flex: 1 1 auto; }
+.moremenu .sizer .btn { width: auto; flex: none; }
+@media (min-width: 561px) and (max-width: 1180px) {
+  .top .topx { display: none; }
+  .morewrap { display: block; order: 3; }
+  .top .menubtn { order: 4; }
+}
+@media (min-width: 561px) {
+  .top .strip { overflow: hidden; }
+  .top .strip .latest { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+}
 .invite { display: flex; gap: 14px; align-items: center; margin-top: 14px; padding: 12px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
 .invite .qr { flex: none; width: 124px; height: 124px; background: #fff; border-radius: 8px; padding: 2px; }
 .invite .qr svg { width: 100%; height: 100%; display: block; }
@@ -4340,6 +4356,7 @@ if (typeof module !== 'undefined') {
         <div class="players">${chips}</div>
         <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b></span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
         <span class="sizer topx" title="牌的大小">${sizerHTML}</span>${`<span class="topx">${sndBtn}</span>`}
+        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">更多 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>` : ''}</span>
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
         <button class="btn small topx" data-a="rules">規則</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
@@ -4478,6 +4495,7 @@ if (typeof module !== 'undefined') {
   }
   app.addEventListener('click', (e) => {
     const a = e.target.closest('[data-a]');
+    if (S.moreOpen && !['more', 'twMinus', 'twPlus', 'snd'].includes(a ? a.dataset.a : '') ) { S.moreOpen = false; if (!a) { if (e.target.closest('.moremenu')) { S.moreOpen = true; return; } render(); return; } }
     if (a) {
       if ((a.dataset.a === 'closeRules' || a.dataset.a === 'closePw') && e.target.closest('[data-keep]') && !e.target.closest('button')) return;
       doAction(a.dataset.a, a);
@@ -4534,6 +4552,7 @@ if (typeof module !== 'undefined') {
       case 'snd': S.sound = !S.sound; LS.set('mk-snd', S.sound ? '1' : '0'); if (S.sound) { audioUnlock(); beep(); } render(); break;
       case 'undo': undoStep(); break;
       case 'reset': resetWork(); break;
+      case 'more': S.moreOpen = !S.moreOpen; render(); break;
       case 'putmulti': moveMulti({ kind: 'board' }); break;
       case 'putgroups': putGroups(); break;
       case 'draw': drawAction(); break;

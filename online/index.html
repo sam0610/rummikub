@@ -2978,7 +2978,9 @@ for (let id = 0; id < 106; id++) {
     TILES.push({ id, j: false, c: Math.floor(k / 13), n: (k % 13) + 1 });
   }
 }
-const T = (id) => TILES[id];
+const FAKE = [];
+for (let k = 0; k < 52; k++) FAKE.push({ id: 200 + k, j: false, c: Math.floor(k / 13), n: (k % 13) + 1 });
+const T = (id) => (id >= 200 ? FAKE[id - 200] : TILES[id]);
 const JOKER_VALUE = 30;
 
 function shuffle(a) {
@@ -3408,40 +3410,10 @@ function botPlan(hand, board, melded, minInitial) {
     }
     return false;
   };
-  // 用手上的真牌換走桌面上的 Joker,再把 Joker 用在新牌組
-  const jokerSwapOnce = () => {
-    for (const s of b) {
-      const a = analyzeSet(s);
-      if (!a) continue;
-      for (const jid of s.filter((x) => T(x).j)) {
-        const v = a.jv[jid];
-        let rep = null;
-        if (a.kind === 'run') {
-          const col = T(s.find((x) => !T(x).j)).c;
-          rep = h.find((x) => !T(x).j && T(x).c === col && T(x).n === v);
-        } else {
-          const cols = new Set(s.filter((x) => !T(x).j).map((x) => T(x).c));
-          rep = h.find((x) => !T(x).j && T(x).n === v && !cols.has(T(x).c));
-        }
-        if (rep === undefined || rep === null) continue;
-        const s2 = s.map((x) => (x === jid ? rep : x));
-        if (!analyzeSet(s2)) continue;
-        const pool = h.filter((x) => x !== rep && !T(x).j).concat(jid);
-        const m = findBestMelds(pool, false, true);
-        if (m.used.has(jid)) {
-          s[s.indexOf(jid)] = rep;
-          b.push(...m.sets);
-          placed.push(rep);
-          h = h.filter((x) => x !== rep);
-          take([...m.used].filter((x) => x !== jid));
-          return true;
-        }
-      }
-    }
-    return false;
-  };
-  // 用桌面別組「多出來的牌」換走桌面上的 Joker(例如 4 張順子的尾牌),Joker 再用在新牌組,避免動用手上的 Joker
-  const jokerSwapBoardOnce = () => {
+  // 換走桌面上的 Joker(替身可以是手牌,也可以是桌面別組多出來的牌),換出來的 Joker 再配合手牌/借牌組新牌組,避免動用手上的 Joker
+  const freeJokerOnce = () => {
+    const hj = h.filter((x) => T(x).j);
+    const hn = h.filter((x) => !T(x).j);
     for (let si = 0; si < b.length; si++) {
       const s = b[si];
       const a = analyzeSet(s);
@@ -3451,24 +3423,44 @@ function botPlan(hand, board, melded, minInitial) {
         const reals = s.filter((x) => !T(x).j);
         const col = T(reals[0]).c;
         const cols = new Set(reals.map((x) => T(x).c));
+        const fits = (t) => (a.kind === 'run' ? T(t).c === col && T(t).n === v : T(t).n === v && !cols.has(T(t).c));
+        const srcs = [];
+        for (const x of hn) if (fits(x)) { srcs.push({ rep: x, from: -1 }); break; }
         for (let sj = 0; sj < b.length; sj++) {
           if (sj === si) continue;
-          const s2 = b[sj];
-          for (const t of s2) {
-            if (T(t).j) continue;
-            const fits = a.kind === 'run' ? T(t).c === col && T(t).n === v : T(t).n === v && !cols.has(T(t).c);
-            if (!fits) continue;
-            const s1 = s.map((x) => (x === jid ? t : x));
-            if (!analyzeSet(s1)) continue;
-            const segs = removeFromSet(s2, new Set([t]));
-            if (!segs) continue;
-            const m = findBestMelds(h.filter((x) => !T(x).j).concat(jid), false, true);
-            if (!m.used.has(jid)) continue;
-            const nb = [];
-            b.forEach((x, i) => { if (i === si) nb.push(s1); else if (i === sj) nb.push(...segs); else nb.push(x); });
+          for (const t of b[sj]) {
+            if (T(t).j || !fits(t)) continue;
+            if (removeFromSet(b[sj], new Set([t]))) srcs.push({ rep: t, from: sj });
+          }
+        }
+        for (const src of srcs) {
+          const s1 = s.map((x) => (x === jid ? src.rep : x));
+          if (!analyzeSet(s1)) continue;
+          const nb = [];
+          let ok = true;
+          b.forEach((x, i) => {
+            if (i === si) nb.push(s1);
+            else if (i === src.from) { const segs = removeFromSet(x, new Set([src.rep])); if (!segs) ok = false; else nb.push(...segs); }
+            else nb.push(x);
+          });
+          if (!ok) continue;
+          const nh = src.from < 0 ? hn.filter((x) => x !== src.rep) : hn;
+          const apply = (newSets, nbAfter, usedHand) => {
             b.length = 0;
-            b.push(...nb, ...m.sets);
-            take([...m.used].filter((x) => x !== jid));
+            b.push(...nbAfter, ...newSets);
+            if (src.from < 0) { placed.push(src.rep); h = h.filter((x) => x !== src.rep); }
+            take(usedHand);
+          };
+          // A: 換出來的 Joker + 手牌
+          const m = findBestMelds(nh.concat(jid), false, true);
+          if (m.used.has(jid)) { apply(m.sets, nb, [...m.used].filter((x) => x !== jid)); return true; }
+          // B: 換出來的 Joker 當替身 + 手牌 + 向桌面借牌
+          for (let k = 0; k < 52; k++) {
+            const fk = 200 + k;
+            const r = findMeldsBorrow(nh.concat(fk), nb);
+            if (!r || !r.usedHand.includes(fk)) continue;
+            const fix = (x) => (x === fk ? jid : x);
+            apply(r.sets.map((st) => st.map(fix)), r.boardAfter, r.usedHand.filter((x) => x !== fk));
             return true;
           }
         }
@@ -3503,8 +3495,7 @@ function botPlan(hand, board, melded, minInitial) {
     if (!changed) changed = borrowOnce();
     if (!changed) changed = splitOnce();
     if (!changed) changed = borrowMultiOnce();
-    if (!changed) changed = jokerSwapOnce();
-    if (!changed) changed = jokerSwapBoardOnce();
+    if (!changed) changed = freeJokerOnce();
     if (!changed) break;
   }
   if (h.length > 0 && h.length <= JOKER_HAND_LIMIT) {

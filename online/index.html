@@ -3426,7 +3426,7 @@ function botPlan(hand, board, melded, minInitial) {
         if (rep === undefined || rep === null) continue;
         const s2 = s.map((x) => (x === jid ? rep : x));
         if (!analyzeSet(s2)) continue;
-        const pool = h.filter((x) => x !== rep).concat(jid);
+        const pool = h.filter((x) => x !== rep && !T(x).j).concat(jid);
         const m = findBestMelds(pool, false, true);
         if (m.used.has(jid)) {
           s[s.indexOf(jid)] = rep;
@@ -3435,6 +3435,42 @@ function botPlan(hand, board, melded, minInitial) {
           h = h.filter((x) => x !== rep);
           take([...m.used].filter((x) => x !== jid));
           return true;
+        }
+      }
+    }
+    return false;
+  };
+  // 用桌面別組「多出來的牌」換走桌面上的 Joker(例如 4 張順子的尾牌),Joker 再用在新牌組,避免動用手上的 Joker
+  const jokerSwapBoardOnce = () => {
+    for (let si = 0; si < b.length; si++) {
+      const s = b[si];
+      const a = analyzeSet(s);
+      if (!a) continue;
+      for (const jid of s.filter((x) => T(x).j)) {
+        const v = a.jv[jid];
+        const reals = s.filter((x) => !T(x).j);
+        const col = T(reals[0]).c;
+        const cols = new Set(reals.map((x) => T(x).c));
+        for (let sj = 0; sj < b.length; sj++) {
+          if (sj === si) continue;
+          const s2 = b[sj];
+          for (const t of s2) {
+            if (T(t).j) continue;
+            const fits = a.kind === 'run' ? T(t).c === col && T(t).n === v : T(t).n === v && !cols.has(T(t).c);
+            if (!fits) continue;
+            const s1 = s.map((x) => (x === jid ? t : x));
+            if (!analyzeSet(s1)) continue;
+            const segs = removeFromSet(s2, new Set([t]));
+            if (!segs) continue;
+            const m = findBestMelds(h.filter((x) => !T(x).j).concat(jid), false, true);
+            if (!m.used.has(jid)) continue;
+            const nb = [];
+            b.forEach((x, i) => { if (i === si) nb.push(s1); else if (i === sj) nb.push(...segs); else nb.push(x); });
+            b.length = 0;
+            b.push(...nb, ...m.sets);
+            take([...m.used].filter((x) => x !== jid));
+            return true;
+          }
         }
       }
     }
@@ -3468,6 +3504,7 @@ function botPlan(hand, board, melded, minInitial) {
     if (!changed) changed = splitOnce();
     if (!changed) changed = borrowMultiOnce();
     if (!changed) changed = jokerSwapOnce();
+    if (!changed) changed = jokerSwapBoardOnce();
     if (!changed) break;
   }
   if (h.length > 0 && h.length <= JOKER_HAND_LIMIT) {

@@ -2980,6 +2980,7 @@ for (let id = 0; id < 106; id++) {
 }
 const FAKE = [];
 for (let k = 0; k < 52; k++) FAKE.push({ id: 200 + k, j: false, c: Math.floor(k / 13), n: (k % 13) + 1 });
+const tileName = (id) => (T(id).j ? 'Joker' : COLOR_NAMES[T(id).c] + T(id).n);
 const T = (id) => (id >= 200 ? FAKE[id - 200] : TILES[id]);
 const JOKER_VALUE = 30;
 
@@ -3167,7 +3168,8 @@ function playMove(G, seat, nextBoard) {
   G.lastPlaced = r.added.slice();
   G.stall = 0;
   G.rev++;
-  glog(G, `${p.name} 打出 ${r.added.length} 張牌`);
+  const names = r.added.slice().sort((a, b) => (T(a).j - T(b).j) || T(a).c - T(b).c || T(a).n - T(b).n).map(tileName).join(' ');
+  glog(G, `${p.name} 打出 ${r.added.length} 張牌(${names})`);
   if (p.hand.length === 0) endGame(G, seat, 'out');
   else advance(G);
   return { ok: true, added: r.added };

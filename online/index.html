@@ -3528,10 +3528,201 @@ function botPlan(hand, board, melded, minInitial) {
   return { board: b, placed };
 }
 
+
+/* ===== 全桌重組:把桌面所有牌加手牌一起重新分組,桌面每張牌都要用到,盡量打出最多手牌 ===== */
+function solveCore(hand, board, opts) {
+  const budget = (opts && opts.ms) || 700;
+  const t0 = Date.now();
+  const mk = () => Array.from({ length: 4 }, () => Array.from({ length: 14 }, () => []));
+  const bId = mk(), hId = mk();
+  const jb = [], jh = [];
+  for (const id of board.flat()) { const t = T(id); if (t.j) jb.push(id); else bId[t.c][t.n].push(id); }
+  let hr = 0;
+  for (const id of hand) { const t = T(id); if (t.j) jh.push(id); else { hId[t.c][t.n].push(id); hr++; } }
+  const baseHR = hr, baseHJ = jh.length;
+  if (!baseHR && !baseHJ) return null;
+  const boardIds = new Set(board.flat());
+  const chosen = [];
+  const seen = new Set();
+  let best = { score: -Infinity, sets: null };
+  let nodes = 0, timeUp = false;
+  const avail = (c, n) => bId[c][n].length + hId[c][n].length;
+
+  const takeCell = (c, n) => {
+    if (bId[c][n].length) return { id: bId[c][n].pop(), h: false, c, n };
+    hr--; return { id: hId[c][n].pop(), h: true, c, n };
+  };
+  const putCell = (r) => { if (r.h) { hId[r.c][r.n].push(r.id); hr++; } else bId[r.c][r.n].push(r.id); };
+  const takeJoker = () => (jb.length ? { id: jb.pop(), h: false } : { id: jh.pop(), h: true });
+  const putJoker = (r) => (r.h ? jh.push(r.id) : jb.push(r.id));
+
+  function candidates(c, n) {
+    const out = [];
+    const jAvail = jb.length + jh.length;
+    // 順子
+    for (let st = Math.max(1, n - 12); st <= n; st++) {
+      for (let en = Math.max(n, st + 2); en <= Math.min(13, st + 12); en++) {
+        let miss = 0, hu = 0;
+        for (let k = st; k <= en; k++) {
+          if (avail(c, k) < 1) { miss++; if (miss > 2 || miss > jAvail) break; } else if (!bId[c][k].length) hu++;
+        }
+        if (miss > 2 || miss > jAvail) continue;
+        out.push({ kind: 'run', st, en, miss, hu });
+      }
+    }
+    // 組合
+    for (let mask = 0; mask < 16; mask++) {
+      if (!((mask >> c) & 1)) continue;
+      const cols = [0, 1, 2, 3].filter((x) => (mask >> x) & 1);
+      if (cols.length < 3) continue;
+      let miss = 0, hu = 0;
+      for (const x of cols) { if (avail(x, n) < 1) miss++; else if (!bId[x][n].length) hu++; }
+      if (miss > 2 || miss > jAvail) continue;
+      out.push({ kind: 'group', cols, miss, hu });
+    }
+    out.sort((a, b) => b.hu - a.hu || a.miss - b.miss);
+    return out;
+  }
+
+  function finish() {
+    const work = chosen.map((st) => st.map((r) => r.id));
+    // 桌面剩下沒用到的 Joker 要接到某一組
+    for (const jid of jb) {
+      const w = work.find((x) => analyzeSet(x.concat(jid)));
+      if (!w) return;
+      w.push(jid);
+    }
+    const realUsed0 = baseHR - hr, hjUsed0 = baseHJ - jh.length;
+    const score0 = 1000 * realUsed0 - 50 * hjUsed0;
+    if (score0 + 1000 * hr + 100000 <= best.score) return;
+    let extras = [];
+    let eReal = 0, eJ = 0;
+    if (hr > 0) {
+      const rem = [];
+      for (let c = 0; c < 4; c++) for (let n = 1; n <= 13; n++) rem.push(...hId[c][n]);
+      const m = findBestMelds(rem, false, false);
+      extras = m.sets; eReal = m.used.size;
+      if (rem.length + jh.length <= JOKER_HAND_LIMIT && jh.length) {
+        const m2 = findBestMelds(rem.concat(jh), false, true);
+        const real2 = [...m2.used].filter((x) => !T(x).j).length;
+        if (real2 === rem.length && m2.sets.length) { extras = m2.sets; eReal = real2; eJ = m2.used.size - real2; }
+      }
+    }
+    const all = work.concat(extras);
+    let jLeft = jh.filter((x) => !all.some((st) => st.includes(x)));
+    if (baseHR - hr + eReal === baseHR) {
+      // 手牌真牌全部打出:把剩下的 Joker 也接上去,直接贏
+      for (const jid of jLeft.slice()) {
+        const w = all.find((x) => analyzeSet(x.concat(jid)));
+        if (w) { w.push(jid); jLeft = jLeft.filter((x) => x !== jid); eJ++; }
+      }
+    }
+    const realUsed = realUsed0 + eReal, hjUsed = hjUsed0 + eJ;
+    if (realUsed + hjUsed < 1) return;
+    const win = realUsed === baseHR && hjUsed === baseHJ;
+    const score = 1000 * realUsed - 50 * hjUsed + (win ? 100000 : 0);
+    if (score > best.score) best = { score, sets: all.map((x) => x.slice()) };
+  }
+
+  function dfs() {
+    if (timeUp) return;
+    if ((++nodes & 255) === 0 && Date.now() - t0 > budget) { timeUp = true; return; }
+    let fc = -1, fn = -1;
+    outer: for (let c = 0; c < 4; c++) for (let n = 1; n <= 13; n++) if (bId[c][n].length) { fc = c; fn = n; break outer; }
+    if (fc < 0) { finish(); return; }
+    let key = jb.length + ',' + jh.length + ':';
+    for (let c = 0; c < 4; c++) for (let n = 1; n <= 13; n++) key += bId[c][n].length * 3 + hId[c][n].length;
+    if (seen.has(key)) return;
+    seen.add(key);
+    for (const cd of candidates(fc, fn)) {
+      const taken = [], jt = [];
+      if (cd.kind === 'run') {
+        for (let k = cd.st; k <= cd.en; k++) {
+          if (avail(fc, k) < 1) jt.push(takeJoker()); else taken.push(takeCell(fc, k));
+        }
+      } else {
+        for (const x of cd.cols) { if (avail(x, fn) < 1) jt.push(takeJoker()); else taken.push(takeCell(x, fn)); }
+      }
+      const set = taken.concat(jt);
+      chosen.push(set);
+      dfs();
+      chosen.pop();
+      for (let i = jt.length - 1; i >= 0; i--) putJoker(jt[i]);
+      for (let i = taken.length - 1; i >= 0; i--) putCell(taken[i]);
+      if (timeUp) return;
+    }
+  }
+  dfs();
+  if (!best.sets) return null;
+  const finalBoard = best.sets;
+  const placed = finalBoard.flat().filter((id) => !boardIds.has(id));
+  if (!placed.length) return null;
+  return { board: finalBoard, placed };
+}
+
+
+/* 由近到遠逐步擴大要拆開的牌組範圍,每一圈都做全桌重組搜尋,取最好的結果 */
+function solveFull(hand, board, opts) {
+  const total = (opts && opts.ms) || 560;
+  const t0 = Date.now();
+  const hs = hand.filter((id) => !T(id).j).map((id) => T(id));
+  const near = (a, b) => a.c === b.c ? Math.abs(a.n - b.n) <= 2 : a.n === b.n;
+  const relevant = (set, tiles) => set.some((id) => T(id).j || tiles.some((t) => near(T(id), t)));
+  const levels = [];
+  let cur = board.map((_, i) => i).filter((i) => relevant(board[i], hs));
+  for (let lv = 0; lv < 3; lv++) {
+    levels.push(cur.slice());
+    if (cur.length >= board.length) break;
+    const tiles = cur.flatMap((i) => board[i].filter((id) => !T(id).j).map((id) => T(id)));
+    const nxt = board.map((_, i) => i).filter((i) => cur.includes(i) || relevant(board[i], hs.concat(tiles)));
+    if (nxt.length === cur.length) cur = board.map((_, i) => i);
+    else cur = nxt;
+    if (lv === 1) cur = board.map((_, i) => i);
+  }
+  let bestPl = null, bestSc = -Infinity, last = '';
+  for (let li = 0; li < levels.length; li++) {
+    const idx = levels[li];
+    const key = idx.join(',');
+    if (key === last) continue;
+    last = key;
+    const left = total - (Date.now() - t0);
+    if (left < 20) break;
+    const diss = idx.map((i) => board[i]);
+    const fixed = board.filter((_, i) => !idx.includes(i));
+    const r = solveCore(hand, diss, { ms: Math.min(left, [120, 200, 260][li] || 200) });
+    if (!r) continue;
+    const full = { board: fixed.concat(r.board), placed: r.placed };
+    const sc = planScore(full, hand);
+    if (sc > bestSc) { bestSc = sc; bestPl = full; }
+  }
+  return bestPl;
+}
+
+/* 電腦出牌計畫:簡單 = 逐步調整;困難 = 另外嘗試全桌重組,取較好的 */
+function planScore(plan, hand) {
+  const hs = new Set(hand);
+  const placed = plan.placed.filter((x) => hs.has(x));
+  const real = placed.filter((x) => !T(x).j).length;
+  const jk = placed.length - real;
+  return 1000 * real - 50 * jk + (placed.length >= hand.length ? 100000 : 0);
+}
+function bestPlan(hand, board, melded, minInitial, level) {
+  let plan = botPlan(hand, board, melded, minInitial);
+  if (melded && level !== 'easy') {
+    let full = null;
+    try { full = solveFull(hand, board, { ms: 700 }); } catch (e) { full = null; }
+    if (full) {
+      const r = checkMove(board, full.board, hand, melded, minInitial);
+      if (r.ok && (!plan || planScore(full, hand) > planScore(plan, hand))) plan = full;
+    }
+  }
+  return plan;
+}
+
 /* 電腦回合:回傳 {type:'move', board} 或 {type:'draw'} */
 function botDecide(G, seat) {
   const p = G.players[seat];
-  const plan = botPlan(p.hand, G.board, p.melded, G.settings.initial);
+  const plan = bestPlan(p.hand, G.board, p.melded, G.settings.initial, G.settings.level);
   if (plan) {
     const r = checkMove(G.board, plan.board, p.hand, p.melded, G.settings.initial);
     if (r.ok) return { type: 'move', board: plan.board };
@@ -3560,7 +3751,7 @@ function movedTiles(prev, cur) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, findBestMelds, findMeldsBorrow, shuffle, setKey, movedTiles };
+  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, bestPlan, solveFull, planScore, findBestMelds, findMeldsBorrow, shuffle, setKey, movedTiles };
 }
 
 
@@ -3587,7 +3778,7 @@ if (typeof module !== 'undefined') {
     roomNS: undefined, room: null, code: null, isHost: false, busy: '',
     G: null, pub: null, myId: null, hand: [], melded: false, rackOrder: [],
     work: null, sel: null, msel: [], fresh: new Set(), prevBoard: null, replay: null, hist: [], assist: null, hint: null, draft: null, turnStart: Date.now(),
-    feed: [], lastK: 0, soloBots: 2, soloTimer: 0, soloAssist: true, panel: false, modal: null, hideResult: false,
+    feed: [], lastK: 0, soloBots: 2, soloTimer: 0, soloAssist: true, soloLevel: 'hard', panel: false, modal: null, hideResult: false,
     welcomed: false, hostGone: false, drawArmed: false, unsubs: [],
   };
 
@@ -3652,7 +3843,7 @@ if (typeof module !== 'undefined') {
     return { id: 'p' + G.seq++, name, bot: !!bot, tok: tok || null, peer: null, connected: true, hand: [], melded: false, score: 0 };
   }
   function newLobby() {
-    S.G = { phase: 'wait', rev: 0, settings: { timer: 0, initial: 30, assist: true }, players: [], board: [], pool: [], turn: 0, turnNo: 0, lastPlaced: [], log: [], logSeq: 0, seq: 1, winner: null, endReason: null, results: null };
+    S.G = { phase: 'wait', rev: 0, settings: { timer: 0, initial: 30, assist: true, level: 'hard' }, players: [], board: [], pool: [], turn: 0, turnNo: 0, lastPlaced: [], log: [], logSeq: 0, seq: 1, winner: null, endReason: null, results: null };
     S.G.players.push(mkPlayer(S.name || '玩家', false, S.tok));
   }
   function addBot() {
@@ -3887,7 +4078,7 @@ if (typeof module !== 'undefined') {
     S.isHost = true; S.code = null; S.room = null;
     newLobby();
     for (let i = 0; i < S.soloBots; i++) addBot();
-    S.G.settings.timer = S.soloTimer; S.G.settings.assist = S.soloAssist;
+    S.G.settings.timer = S.soloTimer; S.G.settings.assist = S.soloAssist; S.G.settings.level = S.soloLevel;
     startGame();
   }
   function resumeHost() {
@@ -4166,7 +4357,7 @@ if (typeof module !== 'undefined') {
   }
   function planSuggestion() {
     const pub = S.pub, ini = pub.settings.initial;
-    const plan = botPlan(S.hand, pub.board, S.melded, ini);
+    const plan = bestPlan(S.hand, pub.board, S.melded, ini, 'hard');
     if (plan) {
       const r = checkMove(pub.board, plan.board, S.hand, S.melded, ini);
       if (r.ok) {
@@ -4273,6 +4464,8 @@ if (typeof module !== 'undefined') {
             <div class="seg">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<button data-a="soloTimer" data-n="${v}" class="${S.soloTimer === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <div class="row" style="margin-top:8px"><span class="hint lbl">智能建議</span>
             <div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="soloAssist" data-n="${v ? 1 : 0}" class="${S.soloAssist === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+          <div class="row" style="margin-top:8px"><span class="hint lbl">電腦難度</span>
+            <div class="seg">${[['easy', '簡單'], ['hard', '困難']].map(([v, l]) => `<button data-a="soloLevel" data-n="${v}" class="${S.soloLevel === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <button class="btn primary wide" style="margin-top:12px" data-a="solo"${dis}>開始單人遊戲</button></div>
         <hr class="sep">
         <div><h2>線上對戰</h2>
@@ -4312,6 +4505,7 @@ if (typeof module !== 'undefined') {
         <select id="selTimer" class="field" data-a="timer">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<option value="${v}"${pub.settings.timer === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="row"><span class="hint">智能建議</span><div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="setAssist" data-n="${v ? 1 : 0}" class="${(pub.settings.assist !== false) === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <button class="btn primary" data-a="start"${n < 2 ? ' disabled' : ''}>開始遊戲(${n} 人)</button>
+      <div class="row"><span class="hint">電腦難度</span><div class="seg">${[['easy', '簡單'], ['hard', '困難']].map(([v, l]) => `<button data-a="setLevel" data-n="${v}" class="${(pub.settings.level || 'hard') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">本局設定:${pub.settings.timer > 0 ? '每回合 ' + pub.settings.timer + ' 秒' : '不計時'} · 智能建議${pub.settings.assist === false ? '關閉' : '開啟'}</p><p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
     return `<div class="lobby"><div class="hero"><h1>魔橋</h1></div>
       <div class="panel">
@@ -4574,6 +4768,8 @@ if (typeof module !== 'undefined') {
   document.documentElement.style.setProperty('--k', String(S.k));
   function doAction(k, el) {
     switch (k) {
+      case 'soloLevel': S.soloLevel = el.dataset.n === 'easy' ? 'easy' : 'hard'; render(); break;
+      case 'setLevel': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.level = el.dataset.n === 'easy' ? 'easy' : 'hard'; hostBroadcast(); } break;
       case 'soloAssist': S.soloAssist = el.dataset.n === '1'; render(); break;
       case 'setAssist': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.assist = el.dataset.n === '1'; hostBroadcast(); } break;
       case 'soloTimer': S.soloTimer = +el.dataset.n; render(); break;

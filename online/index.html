@@ -290,6 +290,12 @@ select.field { width: auto; }
 .assist .arow.brk .lab { color: var(--muted); }
 .assist .arow.brk .mset { opacity: 0.7; }
 .latest .msets { margin: 0; flex-wrap: nowrap; }
+.tablearea { position: relative; }
+.replaycap { position: absolute; z-index: 30; left: 50%; bottom: 12px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; justify-content: center; max-width: calc(100% - 24px); padding: 10px 16px; border-radius: 14px; background: var(--ink); color: #fff; font-size: 15px; font-weight: 600; box-shadow: 0 8px 22px rgba(21, 26, 36, 0.35); pointer-events: none; animation: capin 0.25s ease-out; }
+.replaycap .rn { font-size: 17px; font-weight: 800; color: #ffd84a; }
+.replaycap .msets { margin: 0; }
+.mt.back { background: repeating-linear-gradient(45deg, #5b6882, #5b6882 3px, #6d7a96 3px, #6d7a96 6px); border: 1px solid #aab4c8; }
+@keyframes capin { from { opacity: 0; transform: translate(-50%, 8px); } to { opacity: 1; transform: translate(-50%, 0); } }
 .feed { flex: 1; min-height: 0; overflow: auto; display: flex; flex-direction: column; gap: 5px; font-size: 13px; }
 .feed div { color: var(--muted); overflow-wrap: anywhere; }
 .feed div.chat { color: var(--ink); }
@@ -3945,9 +3951,9 @@ if (typeof module !== 'undefined') {
         S.prevBoard = prev && prev.phase === 'play' ? prev.board : null;
         if (prev && prev.phase === 'play' && !(prev.turnNo > pub.turnNo)) {
           const mv = prev.players[prev.turn];
-          const had = new Set(prev.board.flat()), n = pub.board.flat().filter((id) => !had.has(id)).length;
+          const had = new Set(prev.board.flat()), addedIds = pub.board.flat().filter((id) => !had.has(id)), n = addedIds.length;
           const changed = setsKey(prev.board) !== setsKey(pub.board);
-          if (mv) S.hist.push({ id: mv.id, name: mv.name, before: prev.board, after: pub.board, changed, msg: n > 0 ? `${mv.name} 打出 ${n} 張牌` : changed ? `${mv.name} 重新整理了桌面` : `${mv.name} 抽了一張牌` });
+          if (mv) S.hist.push({ id: mv.id, name: mv.name, before: prev.board, after: pub.board, changed, added: addedIds, msg: n > 0 ? `${mv.name} 打出 ${n} 張牌` : changed ? `${mv.name} 重新整理了桌面` : `${mv.name} 抽了一張牌` });
           if (S.hist.length > 12) S.hist.shift();
         } else S.hist = [];
         S.turnStart = Date.now(); S.draft = null; S.sel = null; S.msel = []; S.groups = []; S.assist = null; S.hint = null; S.drawArmed = false; S.replay = null;
@@ -3983,7 +3989,7 @@ if (typeof module !== 'undefined') {
   function startReplay() {
     if (S.replay || !S.pub) return;
     const steps = replaySteps();
-    if (!steps.some((x) => x.changed)) return;
+    if (!steps.length) return;
     const tok = (S.replayTok = (S.replayTok || 0) + 1);
     const boards = [steps[0].before].concat(steps.map((x) => x.after));
     S.replay = { idx: 0, tok, steps, boards };
@@ -4008,7 +4014,7 @@ if (typeof module !== 'undefined') {
           el.animate([{ transform: 'translateY(-140px) scale(.5)', opacity: 0 }, { transform: 'translateY(0) scale(1)', opacity: 1 }], { duration: 700, easing: 'cubic-bezier(.2,.9,.25,1.1)', delay: 250 + 220 * k++, fill: 'backwards' });
         }
       });
-      setTimeout(next, S.replay.steps[S.replay.idx - 1].changed ? 1500 + 220 * Math.max(0, k - 1) : 900);
+      setTimeout(next, (S.replay.steps[S.replay.idx - 1].changed ? 1300 + 220 * Math.max(0, k - 1) : 400) + 1500);
     };
     setTimeout(next, 1000);
   }
@@ -4392,7 +4398,9 @@ if (typeof module !== 'undefined') {
       ? `<div class="dpair"><button class="btn reset" data-a="undo"${S.undo && S.undo.length ? '' : ' disabled'}>復原</button><button class="btn reset" data-a="reset">重設</button></div><button class="btn big finish" data-a="end"${c.r.ok ? '' : ' disabled'}>完成回合</button>`
       : `<button class="btn big draw${S.drawArmed ? ' armed' : ''}" data-a="draw">${S.drawArmed ? '確定抽牌?' : '抽牌'}</button>`}</div>` : '';
     const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
-    const canReplay = pub.phase === 'play' && !S.replay && replaySteps().some((x) => x.changed);
+    const rs = S.replay && S.replay.idx > 0 ? S.replay.steps[S.replay.idx - 1] : null;
+    const replayCap = rs ? `<div class="replaycap"><span class="rn">${esc(rs.name)}</span>${rs.added && rs.added.length ? `<span>打出 ${rs.added.length} 張牌</span><span class="msets">${rs.added.slice(0, 14).map((id) => miniTile(id)).join('')}</span>` : rs.changed ? '<span>重新整理了桌面</span>' : '<span>抽了一張牌</span><i class="mt back"></i>'}</div>` : '';
+    const canReplay = pub.phase === 'play' && !S.replay && replaySteps().length > 0;
     const flEl = S.turnFlash ? Date.now() - S.turnFlash : -1;
     const flash = my && flEl >= 0 && flEl < 2600;
     const sndBtn = `<button class="btn small" data-a="snd">提示音:${S.sound ? '開' : '關'}</button>`;
@@ -4406,7 +4414,7 @@ if (typeof module !== 'undefined') {
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
         <button class="btn small topx" data-a="rules">規則</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
-      <div class="tablearea"><div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
+      <div class="tablearea">${replayCap}<div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
       <div class="deck${my ? ' mine' : ''}${flash ? ' flash' : ''}"${flash ? ` style="animation-delay:-${flEl}ms"` : ''}>
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}

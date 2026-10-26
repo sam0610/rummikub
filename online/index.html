@@ -312,6 +312,15 @@ select.field { width: auto; }
 .card h3 { margin: 0 0 4px; font-size: 14px; color: var(--ink); letter-spacing: 0.04em; }
 .card p, .card li { margin: 0; font-size: 14px; color: #2c3444; }
 .card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 3px; }
+.stbl { margin-top: 12px; overflow: auto; max-height: 220px; }
+.stbl .stt { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
+.stbl table { border-collapse: collapse; width: 100%; font-size: 13px; font-family: var(--num, system-ui); }
+.stbl th, .stbl td { padding: 4px 8px; text-align: right; white-space: nowrap; border-bottom: 1px solid var(--line); }
+.stbl th { font-weight: 700; color: var(--muted); font-family: inherit; }
+.stbl .rn { text-align: left; color: var(--muted); }
+.stbl td.pos { color: var(--ok); } .stbl td.neg { color: var(--bad); } .stbl td.w { font-weight: 800; } .stbl td.na { color: var(--muted); }
+.stbl tfoot td { border-bottom: 0; border-top: 2px solid var(--ink); font-weight: 800; }
+.stbl tfoot .rn { color: var(--ink); }
 .res { display: flex; flex-direction: column; gap: 10px; }
 .res .r { background: var(--surface-2); border: 1px solid var(--line); border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 8px; }
 .res .r.win { background: var(--hl); border-color: var(--ink); }
@@ -3163,6 +3172,8 @@ function endGame(G, winnerSeat, reason) {
     p.score += delta;
     return { id: p.id, name: p.name, hand: p.hand.slice(), value: vals[i], delta, total: p.score };
   });
+  (G.rounds = G.rounds || []).push({ n: G.rounds.length + 1, win: G.players[winnerSeat].id, d: Object.fromEntries(G.results.map((r) => [r.id, r.delta])) });
+  if (G.rounds.length > 60) G.rounds.shift();
   G.phase = 'end';
   G.winner = winnerSeat;
   G.endReason = reason;
@@ -3812,7 +3823,7 @@ if (typeof module !== 'undefined') {
     return {
       phase: G.phase, code: code || null, rev: G.rev, settings: G.settings, turn: G.turn, turnNo: G.turnNo,
       board: G.board, pool: G.pool.length, lastPlaced: G.lastPlaced || [], winner: G.winner, endReason: G.endReason,
-      results: G.results, log: G.log.slice(-12),
+      results: G.results, rounds: G.rounds || [], log: G.log.slice(-12),
       players: G.players.map((p) => ({ id: p.id, name: p.name, bot: p.bot, peer: p.peer, connected: p.connected, count: p.hand.length, melded: p.melded, score: p.score })),
     };
   }
@@ -3850,7 +3861,7 @@ if (typeof module !== 'undefined') {
     return { id: 'p' + G.seq++, name, bot: !!bot, tok: tok || null, peer: null, connected: true, hand: [], melded: false, score: 0 };
   }
   function newLobby() {
-    S.G = { phase: 'wait', rev: 0, settings: { timer: 0, initial: 30, assist: true, level: 'hard' }, players: [], board: [], pool: [], turn: 0, turnNo: 0, lastPlaced: [], log: [], logSeq: 0, seq: 1, winner: null, endReason: null, results: null };
+    S.G = { phase: 'wait', rev: 0, settings: { timer: 0, initial: 30, assist: true, level: 'hard' }, players: [], board: [], pool: [], turn: 0, turnNo: 0, lastPlaced: [], rounds: [], log: [], logSeq: 0, seq: 1, winner: null, endReason: null, results: null };
     S.G.players.push(mkPlayer(S.name || '玩家', false, S.tok));
   }
   function addBot() {
@@ -3864,6 +3875,7 @@ if (typeof module !== 'undefined') {
     const old = S.G;
     if (!old || old.players.length < 2) return;
     const g = makeGame(old.players.map((p) => ({ ...p })), old.settings);
+    g.rounds = (old.rounds || []).slice();
     S.G = g;
     glog(g, `牌局開始,由 ${g.players[g.turn].name} 先出牌`);
     S.hand = []; S.rackOrder = [];
@@ -4629,6 +4641,7 @@ if (typeof module !== 'undefined') {
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
         <div class="sidebtns"><span class="sizer">${sizerHTML}</span>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
+        ${scoreTableHTML(pub)}
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>
         ${S.room ? `<div class="chatrow"><input id="chatIn" class="field" maxlength="120" placeholder="說點什麼…" autocomplete="off"><button class="btn small" data-a="chat">送出</button></div>` : ''}
       </aside>
@@ -4637,6 +4650,12 @@ if (typeof module !== 'undefined') {
     </div>`;
   }
 
+  function scoreTableHTML(pub) {
+    const rs = pub.rounds || [];
+    if (!rs.length) return '';
+    const ps = pub.players;
+    return `<div class="stbl"><div class="stt">累積積分(${rs.length} 局)</div><table><thead><tr><th></th>${ps.map((p) => `<th>${esc(p.name)}</th>`).join('')}</tr></thead><tbody>${rs.map((r) => `<tr><td class="rn">第 ${r.n} 局</td>${ps.map((p) => { const d = r.d[p.id]; return d == null ? '<td class="na">–</td>' : `<td class="${d >= 0 ? 'pos' : 'neg'}${r.win === p.id ? ' w' : ''}">${r.win === p.id ? '★' : ''}${d > 0 ? '+' : ''}${d}</td>`; }).join('')}</tr>`).join('')}</tbody><tfoot><tr><td class="rn">總分</td>${ps.map((p) => `<td class="tot">${p.score > 0 ? '+' : ''}${p.score}</td>`).join('')}</tr></tfoot></table></div>`;
+  }
   function resultHTML() {
     const pub = S.pub;
     const res = pub.results || [];
@@ -4646,6 +4665,7 @@ if (typeof module !== 'undefined') {
       <p>${pub.endReason === 'out' ? '最先把手牌全部打完。' : '牌堆已空,沒有人能繼續出牌,以剩餘點數最少者獲勝。'}</p>
       <div class="res">${res.map((r, i) => `<div class="r${i === pub.winner ? ' win' : ''}"><div class="h"><b>${esc(r.name)}</b><span class="hint">剩 ${r.hand.length} 張 / ${r.value} 點</span><span class="d ${r.delta >= 0 ? 'pos' : 'neg'}">${r.delta > 0 ? '+' : ''}${r.delta}</span><span class="hint">總分 ${r.total}</span></div>
         ${r.hand.length ? `<div class="mini">${r.hand.map((id) => tileHTML(id)).join('')}</div>` : ''}</div>`).join('')}</div>
+      ${scoreTableHTML(pub)}
       <div class="row">${S.isHost ? '<button class="btn primary" data-a="again">再來一局</button>' : '<span class="hint">等待房主開始下一局…</span>'}
         <button class="btn ghost" data-a="hideResult">查看牌桌</button><span class="grow"></span><button class="btn danger" data-a="leave">離開</button></div>
     </div></div>`;

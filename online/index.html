@@ -3772,7 +3772,8 @@ if (typeof module !== 'undefined') {
     del(k) { try { localStorage.removeItem(k); } catch (e) {} },
   };
   const rid = (n) => { const ch = 'abcdefghjkmnpqrstuvwxyz23456789'; let s = ''; for (let i = 0; i < n; i++) s += ch[Math.floor(Math.random() * ch.length)]; return s; };
-  const genCode = () => { const ch = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; let s = ''; for (let i = 0; i < 4; i++) s += ch[Math.floor(Math.random() * ch.length)]; return s; };
+  const genCode = () => { const L = 'ABCDEFGHJKLMNPQRSTUVWXYZ'; let s = L[Math.floor(Math.random() * L.length)]; for (let i = 0; i < 3; i++) s += Math.floor(Math.random() * 10); return s; };
+  const CODE_RE = /^[A-Z][0-9]{3}$/;
   const BOT_NAMES = ['阿財', '阿珍', '阿強', '阿明', '阿欣'];
 
   const S = {
@@ -4056,7 +4057,9 @@ if (typeof module !== 'undefined') {
     S.busy = '正在建立房間…'; render();
     let code = genCode();
     try {
-      try { await openRoom(code, true); } catch (e) { if (e && e.code === 'taken') { code = genCode(); await openRoom(code, true); } else throw e; }
+      for (let tries = 0; ; tries++) {
+        try { await openRoom(code, true); break; } catch (e) { if (e && e.code === 'taken' && tries < 8) code = genCode(); else throw e; }
+      }
       S.code = code; S.isHost = true;
       newLobby();
       S.room.presence({ host: true, code, name: S.name || '玩家' }).catch(() => {});
@@ -4066,7 +4069,7 @@ if (typeof module !== 'undefined') {
   }
   async function joinRoom(raw) {
     const code = String(raw || '').trim().toUpperCase();
-    if (!/^[A-Z0-9]{4}$/.test(code)) return say('請輸入 4 位房間代碼');
+    if (!CODE_RE.test(code)) return say('房號是 1 個英文字母加 3 個數字,例如 K482');
     if (!S.roomNS) return say('目前無法使用線上連線');
     S.busy = `正在加入 ${code}…`; render();
     try {
@@ -4476,7 +4479,7 @@ if (typeof module !== 'undefined') {
         <hr class="sep">
         <div><h2>線上對戰</h2>
           <button class="btn primary wide" data-a="create"${dOn}>建立房間</button>
-          <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="inCode" class="field" style="flex:1 1 0;min-width:0;text-transform:uppercase;letter-spacing:.18em;text-align:center" maxlength="4" placeholder="輸入 4 位代碼" autocomplete="off" autocapitalize="characters">
+          <div class="row" style="margin-top:8px;flex-wrap:nowrap"><input id="inCode" class="field" style="flex:1 1 0;min-width:0;text-transform:uppercase;letter-spacing:.18em;text-align:center" maxlength="4" placeholder="房號,例如 K482" autocomplete="off" autocapitalize="characters">
             <button class="btn" data-a="join"${dOn}>加入</button></div>
           ${S.busy ? `<p class="hint" style="margin-top:8px">${esc(S.busy)}</p>` : online ? `<p class="hint warn" style="margin-top:8px">${online}</p>` : `<p class="hint" style="margin-top:8px">${PLATFORM === 'web' ? '建立後把 4 位代碼和這個網址傳給朋友,對方開啟網址輸入代碼就能加入。房主要保持此頁開著。' : '建立後把 4 位代碼告訴朋友。朋友需要用你分享的連結開啟本頁,並具備「可互動」(Contributor)以上的權限。'}</p>`}
         </div>
@@ -4931,7 +4934,7 @@ if (typeof module !== 'undefined') {
     if (S.roomNS === undefined) S.roomNS = null;
     try {
       const r = (new URLSearchParams(location.search).get('r') || '').toUpperCase();
-      if (PLATFORM === 'web' && /^[A-Z0-9]{4}$/.test(r) && S.roomNS && !readSaved()) {
+      if (PLATFORM === 'web' && CODE_RE.test(r) && S.roomNS && !readSaved()) {
         S.invite = r;
         history.replaceState(null, '', location.pathname);
         if (S.name && S.name.trim()) { render(); joinRoom(r).then(() => { S.invite = null; }); return; }

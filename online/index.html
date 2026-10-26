@@ -3679,9 +3679,14 @@ function solveFull(hand, board, opts) {
     else cur = nxt;
     if (lv === 1) cur = board.map((_, i) => i);
   }
+  const maxLv = opts && opts.maxLevel != null ? opts.maxLevel + 1 : levels.length;
   let bestPl = null, bestSc = -Infinity, last = '';
-  for (let li = 0; li < levels.length; li++) {
-    const idx = levels[li];
+  for (let li = 0; li < Math.min(levels.length, maxLv); li++) {
+    let idx = levels[li];
+    if (opts && opts.maxDissolve && idx.length > opts.maxDissolve) {
+      const cnt = (i) => board[i].filter((id) => T(id).j || hs.some((t) => near(T(id), t))).length;
+      idx = idx.slice().sort((a, b) => cnt(b) - cnt(a) || a - b).slice(0, opts.maxDissolve).sort((a, b) => a - b);
+    }
     const key = idx.join(',');
     if (key === last) continue;
     last = key;
@@ -3710,7 +3715,8 @@ function bestPlan(hand, board, melded, minInitial, level) {
   let plan = botPlan(hand, board, melded, minInitial);
   if (melded && level !== 'easy') {
     let full = null;
-    try { full = solveFull(hand, board, { ms: 700 }); } catch (e) { full = null; }
+    const o = level === 'normal' ? { ms: 150, maxLevel: 0, maxDissolve: 3 } : { ms: 560 };
+    try { full = solveFull(hand, board, o); } catch (e) { full = null; }
     if (full) {
       const r = checkMove(board, full.board, hand, melded, minInitial);
       if (r.ok && (!plan || planScore(full, hand) > planScore(plan, hand))) plan = full;
@@ -4465,7 +4471,7 @@ if (typeof module !== 'undefined') {
           <div class="row" style="margin-top:8px"><span class="hint lbl">智能建議</span>
             <div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="soloAssist" data-n="${v ? 1 : 0}" class="${S.soloAssist === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <div class="row" style="margin-top:8px"><span class="hint lbl">電腦難度</span>
-            <div class="seg">${[['easy', '簡單'], ['hard', '困難']].map(([v, l]) => `<button data-a="soloLevel" data-n="${v}" class="${S.soloLevel === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+            <div class="seg">${[['easy', '簡單'], ['normal', '普通'], ['hard', '困難']].map(([v, l]) => `<button data-a="soloLevel" data-n="${v}" class="${S.soloLevel === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <button class="btn primary wide" style="margin-top:12px" data-a="solo"${dis}>開始單人遊戲</button></div>
         <hr class="sep">
         <div><h2>線上對戰</h2>
@@ -4505,7 +4511,7 @@ if (typeof module !== 'undefined') {
         <select id="selTimer" class="field" data-a="timer">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<option value="${v}"${pub.settings.timer === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="row"><span class="hint">智能建議</span><div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="setAssist" data-n="${v ? 1 : 0}" class="${(pub.settings.assist !== false) === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <button class="btn primary" data-a="start"${n < 2 ? ' disabled' : ''}>開始遊戲(${n} 人)</button>
-      <div class="row"><span class="hint">電腦難度</span><div class="seg">${[['easy', '簡單'], ['hard', '困難']].map(([v, l]) => `<button data-a="setLevel" data-n="${v}" class="${(pub.settings.level || 'hard') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+      <div class="row"><span class="hint">電腦難度</span><div class="seg">${[['easy', '簡單'], ['normal', '普通'], ['hard', '困難']].map(([v, l]) => `<button data-a="setLevel" data-n="${v}" class="${(pub.settings.level || 'hard') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">本局設定:${pub.settings.timer > 0 ? '每回合 ' + pub.settings.timer + ' 秒' : '不計時'} · 智能建議${pub.settings.assist === false ? '關閉' : '開啟'}</p><p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
     return `<div class="lobby"><div class="hero"><h1>魔橋</h1></div>
       <div class="panel">
@@ -4768,8 +4774,8 @@ if (typeof module !== 'undefined') {
   document.documentElement.style.setProperty('--k', String(S.k));
   function doAction(k, el) {
     switch (k) {
-      case 'soloLevel': S.soloLevel = el.dataset.n === 'easy' ? 'easy' : 'hard'; render(); break;
-      case 'setLevel': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.level = el.dataset.n === 'easy' ? 'easy' : 'hard'; hostBroadcast(); } break;
+      case 'soloLevel': S.soloLevel = ['easy', 'normal'].includes(el.dataset.n) ? el.dataset.n : 'hard'; render(); break;
+      case 'setLevel': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.level = ['easy', 'normal'].includes(el.dataset.n) ? el.dataset.n : 'hard'; hostBroadcast(); } break;
       case 'soloAssist': S.soloAssist = el.dataset.n === '1'; render(); break;
       case 'setAssist': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.assist = el.dataset.n === '1'; hostBroadcast(); } break;
       case 'soloTimer': S.soloTimer = +el.dataset.n; render(); break;

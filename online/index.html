@@ -4633,7 +4633,7 @@ if (typeof module !== 'undefined') {
       <div class="deck${my ? ' mine' : ''}${flash ? ' flash' : ''}"${flash ? ` style="animation-delay:-${flEl}ms"` : ''}>
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}
-          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
+          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}${pub.phase === 'end' && S.hideResult ? `<button class="btn small" data-a="showResult">顯示結果</button>${S.isHost ? '<button class="btn small primary" data-a="again">再來一局</button>' : '<span class="hint">等待房主開始下一局…</span>'}` : ''}</div></div></div>
         ${assistHTML()}
         <div class="rackwrap">
         <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id) || S.groups.some((g) => g.includes(id)), g: S.groups.findIndex((g) => g.includes(id)) + 1, fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div></div>
@@ -4822,6 +4822,7 @@ if (typeof module !== 'undefined') {
       case 'start': if (S.isHost) startGame(); break;
       case 'again': if (S.isHost && S.G && S.G.phase === 'end') { const old = S.G; S.G = { ...old, phase: 'wait' }; startGame(); } break;
       case 'hideResult': S.hideResult = true; render(); break;
+      case 'showResult': S.hideResult = false; render(); break;
       case 'leave': leave(); break;
       case 'twMinus': case 'twPlus': { const nk = Math.max(0.7, Math.min(1.5, Math.round((S.k + (k === 'twPlus' ? 0.1 : -0.1)) * 10) / 10)); setK(nk); break; }
       case 'panel': S.panel = !S.panel; if (S.panel) S.unread = 0; render(); break;

@@ -312,6 +312,12 @@ select.field { width: auto; }
 .card h3 { margin: 0 0 4px; font-size: 14px; color: var(--ink); letter-spacing: 0.04em; }
 .card p, .card li { margin: 0; font-size: 14px; color: #2c3444; }
 .card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 3px; }
+.alog { display: flex; flex-direction: column; margin-top: 3px; }
+.agrp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--line); }
+.agrp .lab { font-size: 12px; font-weight: 700; color: #0f7b4f; min-width: 34px; }
+.agrp .op { color: var(--muted); font-weight: 700; }
+.mset.dim { opacity: 0.55; background: #e4e8ef; }
+.assist .alg { font-size: 11px; color: var(--muted); }
 .stbl { margin-top: 12px; overflow: auto; max-height: 220px; }
 .stbl .stt { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .stbl table { border-collapse: collapse; width: 100%; font-size: 13px; font-family: var(--num, system-ui); }
@@ -3186,12 +3192,33 @@ function advance(G) {
   G.turnNo++;
 }
 
+/* 把「拆掉的舊牌組」和「新出現的牌組」按共用的牌連起來,每一塊分成:接牌 / 新組 / 重組 */
+function diffGroups(oldBoard, newBoard) {
+  const oldKeys = new Set(oldBoard.map(setKey)), newKeys = new Set(newBoard.map(setKey));
+  const olds = oldBoard.filter((x) => !newKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
+  const news = newBoard.filter((x) => !oldKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
+  const par = olds.concat(news).map((_, i) => i);
+  const find = (i) => (par[i] === i ? i : (par[i] = find(par[i])));
+  const owner = new Map();
+  olds.forEach((s, i) => s.forEach((id) => owner.set(id, i)));
+  news.forEach((s, j) => s.forEach((id) => { if (owner.has(id)) par[find(owner.get(id))] = find(olds.length + j); }));
+  const comps = new Map();
+  olds.forEach((s, i) => { const r = find(i); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).o.push(s); });
+  news.forEach((s, j) => { const r = find(olds.length + j); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).n.push(s); });
+  return [...comps.values()].map((c) => {
+    if (!c.o.length) return { kind: 'new', o: c.o, n: c.n };
+    if (c.o.length === 1 && c.n.length === 1 && c.o[0].every((id) => c.n[0].includes(id))) return { kind: 'ext', o: c.o, n: c.n };
+    return { kind: 'redo', o: c.o, n: c.n };
+  }).sort((a, b) => ({ ext: 0, new: 1, redo: 2 }[a.kind] - { ext: 0, new: 1, redo: 2 }[b.kind]));
+}
+
 function playMove(G, seat, nextBoard) {
   const p = G.players[seat];
   if (!Array.isArray(nextBoard)) return { ok: false, err: '資料錯誤' };
   const r = checkMove(G.board, nextBoard, p.hand, p.melded, G.settings.initial);
   if (!r.ok) return r;
   const added = new Set(r.added);
+  const oldBoard = G.board;
   p.hand = p.hand.filter((id) => !added.has(id));
   G.board = nextBoard.map((s) => layoutSet(s).ids);
   p.melded = true;
@@ -3199,7 +3226,7 @@ function playMove(G, seat, nextBoard) {
   G.stall = 0;
   G.rev++;
   const addedSet = new Set(r.added);
-  glog(G, `${p.name} 打出 ${r.added.length} 張牌`, { a: r.added.slice(), t: G.board.filter((st) => st.some((x) => addedSet.has(x))).map((st) => st.slice()) });
+  glog(G, `${p.name} 打出 ${r.added.length} 張牌`, { a: r.added.slice(), t: G.board.filter((st) => st.some((x) => addedSet.has(x))).map((st) => st.slice()), g: diffGroups(oldBoard, G.board) });
   if (p.hand.length === 0) endGame(G, seat, 'out');
   else advance(G);
   return { ok: true, added: r.added };
@@ -4175,7 +4202,7 @@ if (typeof module !== 'undefined') {
     } else { S.hist = []; S.work = null; S.sel = null; S.msel = []; S.groups = []; if (pub.phase === 'end' && (!prev || prev.phase !== 'end')) S.hideResult = false; }
     const logs = pub.log || [];
     if (logs.length && logs[logs.length - 1].k < S.lastK) S.lastK = 0; // 新局重置
-    for (const e of logs) if (e.k > S.lastK) { S.feed.push({ m: e.m, t: e.t, a: e.a }); S.lastK = e.k; }
+    for (const e of logs) if (e.k > S.lastK) { S.feed.push({ m: e.m, t: e.t, a: e.a, g: e.g }); S.lastK = e.k; }
     if (S.feed.length > 80) S.feed.splice(0, S.feed.length - 80);
     render();
   }
@@ -4376,6 +4403,16 @@ if (typeof module !== 'undefined') {
     const n = L.ids.map(T).find((t) => !t.j);
     return n.n + ' 組合:' + L.ids.map((id) => (T(id).j ? '百搭' : CN[T(id).c])).join('、');
   }
+  function assistGroupHTML(g, placed) {
+    const dim = (s) => `<span class="mset dim">${s.map((id) => miniTile(id)).join('')}</span>`;
+    const hl = (s) => miniSet(s, placed);
+    if (g.kind === 'new') return `<div class="agrp"><span class="lab">新組</span>${g.n.map(hl).join('')}</div>`;
+    if (g.kind === 'ext') {
+      const add = g.n[0].filter((id) => !g.o[0].includes(id));
+      return `<div class="agrp"><span class="lab">接牌</span>${dim(g.o[0])}<span class="op">＋</span><span class="mset">${add.map((id) => miniTile(id, placed.has(id))).join('')}</span><span class="op">＝</span>${hl(g.n[0])}</div>`;
+    }
+    return `<div class="agrp"><span class="lab">重組</span>${g.o.map(dim).join('')}<span class="op">→</span>${g.n.map(hl).join('')}</div>`;
+  }
   function planSuggestion() {
     const pub = S.pub, ini = pub.settings.initial;
     const plan = bestPlan(S.hand, pub.board, S.melded, ini, 'hard');
@@ -4385,7 +4422,7 @@ if (typeof module !== 'undefined') {
         const oldKeys = new Set(pub.board.map(setKey)), newKeys = new Set(plan.board.map(setKey));
         const made = plan.board.filter((x) => !oldKeys.has(setKey(x)));
         const broken = pub.board.filter((x) => !newKeys.has(setKey(x)));
-        return { ok: true, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), madeIds: made.map((x) => layoutSet(x).ids), brokenIds: broken.map((x) => layoutSet(x).ids), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
+        return { ok: true, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), groups: diffGroups(pub.board, plan.board), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
       }
     }
     let miss = null;
@@ -4413,7 +4450,8 @@ if (typeof module !== 'undefined') {
     if (!a || !isMyTurn()) return '';
     const g = a.sug;
     if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議:可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
-      ${g.madeIds.map((st) => `<div class="arow"><span class="lab">新組</span>${miniSet(st, new Set(g.placed))}</div>`).join('')}${g.brokenIds.map((st) => `<div class="arow brk"><span class="lab">拆開</span>${miniSet(st)}</div>`).join('')}
+      ${g.groups.map((x) => assistGroupHTML(x, new Set(g.placed))).join('')}
+      <div class="alg">黃色底線 = 你手上要打出的牌 · 灰色 = 桌面原有的牌組</div>
       <div class="ar2"><button class="btn small primary" data-a="assistApply">照建議擺牌</button><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
     return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
   }
@@ -4462,7 +4500,7 @@ if (typeof module !== 'undefined') {
   }
   const miniTile = (id, nw) => { const x = T(id); return x.j ? `<i class="mt mj${nw ? ' nw' : ''}">☺</i>` : `<i class="mt c${x.c}${nw ? ' nw' : ''}">${x.n}</i>`; };
   const miniSet = (ids, hl) => `<span class="mset">${ids.map((id) => miniTile(id, hl && hl.has(id))).join('')}</span>`;
-  const miniAdded = (f) => (f && f.t && f.t.length ? `<span class="msets">${f.t.map((st) => miniSet(st, new Set(f.a || []))).join('')}</span>` : '');
+  const miniAdded = (f) => (f && f.g && f.g.length ? `<span class="alog">${f.g.map((x) => assistGroupHTML(x, new Set(f.a || []))).join('')}</span>` : f && f.t && f.t.length ? `<span class="msets">${f.t.map((st) => miniSet(st, new Set(f.a || []))).join('')}</span>` : '');
   const dragId = () => (drag && drag.active ? drag.id : null);
 
   function lobbyHTML() {

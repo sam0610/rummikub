@@ -1,5 +1,5 @@
 <!doctype html><html lang="zh-Hant"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#e9edf3">
-<title>魔橋 內部測試版</title>
+<title>魔橋</title>
 <meta name="claude:viewport-fit-sides" content="cover">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -286,6 +286,10 @@ select.field { width: auto; }
 .mt.mv::after { content: ''; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: #0f7b4f; border: 1px solid #fff; }
 .agrp details.oldsets { flex-basis: 100%; font-size: 12px; color: var(--muted); }
 .agrp details.oldsets summary { cursor: pointer; padding: 2px 0; }
+.endbar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 10px 8px; margin-bottom: 8px; border-radius: 12px; background: #fff7d6; border: 2px solid #f2b705; }
+.endbar .et { font-size: 17px; font-weight: 800; color: #6b4e00; }
+.btn.big { min-height: 52px; padding: 0 28px; font-size: 19px; font-weight: 800; border-radius: 14px; }
+.btn.big.primary { box-shadow: 0 0 0 3px rgba(242,183,5,.55); }
 .agrp .olds { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 0; }
 .assist .mt { width: 30px; height: 40px; border-radius: 6px; font-size: 19px; }
 .assist .mt.mj { font-size: 21px; }
@@ -4663,7 +4667,6 @@ if (typeof module !== 'undefined') {
       <div class="row"><span class="hint">智能建議</span><div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="setAssist" data-n="${v ? 1 : 0}" class="${(pub.settings.assist !== false) === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <button class="btn primary" data-a="start"${n < 2 ? ' disabled' : ''}>開始遊戲(${n} 人)</button>
       <div class="row"><span class="hint">電腦難度</span><div class="seg">${[['easy', '簡單'], ['hard', '困難']].map(([v, l]) => `<button data-a="setLevel" data-n="${v}" class="${nl(pub.settings.level || 'hard') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
-      ${levelCtlHTML(pub)}
       ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">本局設定:${pub.settings.timer > 0 ? '每回合 ' + pub.settings.timer + ' 秒' : '不計時'} · 智能建議${pub.settings.assist === false ? '關閉' : '開啟'}</p><p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
     return `<div class="lobby"><div class="hero"><h1>魔橋</h1></div>
       <div class="panel">
@@ -4764,51 +4767,31 @@ if (typeof module !== 'undefined') {
         <span class="meta">${pub.code ? `房間 <b>${esc(pub.code)}</b>` : '單人'}</span>
         <div class="players">${chips}</div>
         <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b>${!S.replay && lastEv && lastEv.a ? `<span class="msets">${lastEv.a.slice(0, 12).map((id) => miniTile(id)).join('')}</span>` : ''}</span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
-        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">設定 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="level">電腦強度</button><button class="btn small" data-a="rules">規則</button></div>` : ''}</span>
+        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">設定 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="rules">規則</button></div>` : ''}</span>
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
       <div class="tablearea">${replayCap}<div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
       <div class="deck${my ? ' mine' : ''}${flash ? ' flash' : ''}"${flash ? ` style="animation-delay:-${flEl}ms"` : ''}>
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
+        ${pub.phase === 'end' && S.hideResult ? `<div class="endbar"><span class="et">牌局已結束</span><button class="btn big" data-a="showResult">顯示結果</button>${S.isHost ? '<button class="btn big primary" data-a="again">再來一局</button>' : '<span class="hint">等待房主開始下一局…</span>'}</div>` : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}
-          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${pub.phase === 'play' && meP ? `<button class="btn small autobtn${meP.auto ? ' on' : ''}" data-a="auto">電腦代打:${meP.auto ? '開' : '關'}</button>` : ''}${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}${pub.phase === 'end' && S.hideResult ? `<button class="btn small" data-a="showResult">顯示結果</button>${S.isHost ? '<button class="btn small primary" data-a="again">再來一局</button>' : '<span class="hint">等待房主開始下一局…</span>'}` : ''}</div></div></div>
+          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${pub.phase === 'play' && meP ? `<button class="btn small autobtn${meP.auto ? ' on' : ''}" data-a="auto">電腦代打:${meP.auto ? '開' : '關'}</button>` : ''}${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
         ${assistHTML()}
         <div class="rackwrap">
         <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id) || S.groups.some((g) => g.includes(id)), g: S.groups.findIndex((g) => g.includes(id)) + 1, fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div></div>
         ${dockHTML}
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
-        <div class="sidebtns"><span class="sizer">${sizerHTML}</span>${sndBtn}<button class="btn small" data-a="level">電腦強度</button><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
+        <div class="sidebtns"><span class="sizer">${sizerHTML}</span>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
         ${scoreTableHTML(pub)}
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>
         ${S.room ? `<div class="chatrow"><input id="chatIn" class="field" maxlength="120" placeholder="說點什麼…" autocomplete="off"><button class="btn small" data-a="chat">送出</button></div>` : ''}
       </aside>
-      ${S.modal === 'rules' ? rulesHTML() : ''}${S.modal === 'level' ? levelModalHTML(pub) : ''}
+      ${S.modal === 'rules' ? rulesHTML() : ''}
       ${pub.phase === 'end' && !S.hideResult ? resultHTML() : ''}
     </div>`;
   }
 
-  function levelCtlHTML(pub) {
-    const eff = (p) => nl(p.level || pub.settings.level || 'hard');
-    const seg = (act, id, cur) => `<span class="seg">${Object.entries(LV).map(([v, l]) => `<button data-a="${act}" data-id="${id}" data-n="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</span>`;
-    const bots = pub.players.filter((p) => p.bot);
-    const meP = pub.players.find((p) => p.id === S.myId);
-    const rows = [];
-    if (S.isHost && bots.length) {
-      rows.push(`<div class="lvrow"><b>全部電腦</b>${seg('setAllBots', '', null)}</div>`);
-      for (const p of bots) rows.push(`<div class="lvrow"><span>${esc(p.name)}</span>${seg('setBotLevel', p.id, eff(p))}</div>`);
-    }
-    if (meP) rows.push(`<div class="lvrow"><span>我的代打強度</span>${seg('setMyLevel', '', eff(meP))}</div>`);
-    rows.push(`<div class="lvrow"><span>我的智能建議強度</span>${seg('assistLv', '', nl(S.assistLv || pub.settings.level || 'hard'))}</div>`);
-    return `<div class="lvctl"><div class="stt">電腦強度</div>${rows.join('')}</div>`;
-  }
-  function levelModalHTML(pub) {
-    return `<div class="overlay" data-a="closeRules"><div class="card" data-keep="1">
-      <h2>電腦強度</h2>
-      ${levelCtlHTML(pub)}
-      <p class="hint">電腦對手和代打在下一次輪到時按新強度出牌;智能建議在下次按「智能建議」時生效。</p>
-      <div class="row"><span class="grow"></span><button class="btn primary" data-a="closeRules">完成</button></div></div></div>`;
-  }
   function scoreTableHTML(pub) {
     const rs = pub.rounds || [];
     if (!rs.length) return '';
@@ -4968,7 +4951,6 @@ if (typeof module !== 'undefined') {
       case 'join': joinRoom(($('#inCode') || {}).value); break;
       case 'resume': resumeHost(); break;
       case 'rules': S.modal = 'rules'; render(); break;
-      case 'level': S.modal = 'level'; S.moreOpen = false; S.panel = false; render(); break;
       case 'assistLv': if (LV[el.dataset.n]) { S.assistLv = el.dataset.n; LS.set('mkt-alv', el.dataset.n); if (S.assist && isMyTurn()) doAssist(); else render(); } break;
       case 'closeRules': S.modal = null; render(); break;
       case 'replay': startReplay(); break;
@@ -4997,9 +4979,6 @@ if (typeof module !== 'undefined') {
       case 'putmulti': moveMulti({ kind: 'board' }); break;
       case 'putgroups': putGroups(); break;
       case 'draw': drawAction(); break;
-      case 'setBotLevel': if (S.isHost && S.G) { const i = S.G.players.findIndex((p) => p.id === el.dataset.id && p.bot); if (i >= 0) setLevel(i, el.dataset.n); } break;
-      case 'setAllBots': if (S.isHost && S.G && LV[el.dataset.n]) { S.G.players.forEach((p) => { if (p.bot) p.level = el.dataset.n; }); S.G.settings.level = el.dataset.n; hostBroadcast(); } break;
-      case 'setMyLevel': { if (!S.pub || !LV[el.dataset.n]) break; if (S.isHost) setLevel(S.G.players.findIndex((p) => p.id === S.myId), el.dataset.n); else netEmit('act', { type: 'level', level: el.dataset.n }); break; }
       case 'auto': { const me = S.pub && S.pub.players.find((p) => p.id === S.myId); if (!me || S.pub.phase !== 'play') break; const on = !me.auto; if (S.isHost) setAuto(S.G.players.findIndex((p) => p.id === S.myId), on); else netEmit('act', { type: 'auto', on }); break; }
       case 'assist': doAssist(); break;
       case 'assistApply': applyAssist(); break;
@@ -5131,4 +5110,3 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 11:21</div>

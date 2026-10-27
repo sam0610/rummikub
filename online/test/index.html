@@ -3501,22 +3501,29 @@ function botPlan(hand, board, melded, minInitial) {
             if (removeFromSet(b[sj], new Set([t]))) srcs.push({ rep: t, from: sj });
           }
         }
+        // 多餘的 Joker:拿走後牌組仍然成立(例如 9-10-11-12 後面多一隻 Joker 當 13)
+        const jOnly = removeFromSet(s, new Set([jid]));
+        if (jOnly) srcs.push({ rep: null, from: -2, segs: jOnly });
         for (const src of srcs) {
-          const s1 = s.map((x) => (x === jid ? src.rep : x));
-          if (!analyzeSet(s1)) continue;
           const nb = [];
           let ok = true;
-          b.forEach((x, i) => {
-            if (i === si) nb.push(s1);
-            else if (i === src.from) { const segs = removeFromSet(x, new Set([src.rep])); if (!segs) ok = false; else nb.push(...segs); }
-            else nb.push(x);
-          });
+          if (src.rep === null) {
+            b.forEach((x, i) => { if (i === si) nb.push(...src.segs); else nb.push(x); });
+          } else {
+            const s1 = s.map((x) => (x === jid ? src.rep : x));
+            if (!analyzeSet(s1)) continue;
+            b.forEach((x, i) => {
+              if (i === si) nb.push(s1);
+              else if (i === src.from) { const segs = removeFromSet(x, new Set([src.rep])); if (!segs) ok = false; else nb.push(...segs); }
+              else nb.push(x);
+            });
+          }
           if (!ok) continue;
-          const nh = src.from < 0 ? hn.filter((x) => x !== src.rep) : hn;
+          const nh = src.from === -1 ? hn.filter((x) => x !== src.rep) : hn;
           const apply = (newSets, nbAfter, usedHand) => {
             b.length = 0;
             b.push(...nbAfter, ...newSets);
-            if (src.from < 0) { placed.push(src.rep); h = h.filter((x) => x !== src.rep); }
+            if (src.from === -1) { placed.push(src.rep); h = h.filter((x) => x !== src.rep); }
             take(usedHand);
           };
           // A: 換出來的 Joker + 手牌
@@ -5067,4 +5074,4 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:33</div>
+<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:43</div>

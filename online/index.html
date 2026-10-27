@@ -91,6 +91,7 @@ button { cursor: pointer; }
 .tile.fresh { box-shadow: 0 0 0 3px var(--hl), 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 10px rgba(21, 26, 36, 0.14); }
 .tile.fresh.sel { box-shadow: 0 0 0 2.5px var(--ink), 0 0 0 5px var(--hl), 0 10px 14px rgba(21, 26, 36, 0.2); }
 .tile.sug { outline: 3px dashed #1f9d6b; outline-offset: 2px; }
+.btn.autobtn.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .assistbtn { border-color: #1f9d6b; color: #0f7b4f; font-weight: 700; }
 .assist { background: #ffffff; border: 1.5px solid #1f9d6b; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .assist .ah { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
@@ -280,7 +281,24 @@ select.field { width: auto; }
 .mt { display: inline-flex; align-items: center; justify-content: center; flex: none; width: 19px; height: 25px; border-radius: 4px; background: var(--tc, var(--t-black)); color: #fff; font: 700 12px/1 var(--num, system-ui); font-style: normal; }
 .mt.c0 { --tc: var(--t-red); } .mt.c1 { --tc: var(--t-blue); } .mt.c2 { --tc: var(--t-black); } .mt.c3 { --tc: var(--t-orange); }
 .mt.mj { background: #fff; color: var(--t-red); border: 1px solid #cdd5e1; font-size: 13px; }
-.mt.nw { box-shadow: 0 3px 0 #f2b705; margin-bottom: 3px; }
+.mt.nw { box-shadow: 0 0 0 2px #f2b705, 0 0 7px #f2b705; margin: 0 2px 3px; position: relative; z-index: 1; }
+.mt.mv { position: relative; }
+.mt.mv::after { content: ''; position: absolute; top: -3px; right: -3px; width: 7px; height: 7px; border-radius: 50%; background: #0f7b4f; border: 1px solid #fff; }
+.agrp details.oldsets { flex-basis: 100%; font-size: 12px; color: var(--muted); }
+.agrp details.oldsets summary { cursor: pointer; padding: 2px 0; }
+.endbar { display: flex; align-items: center; justify-content: center; gap: 12px; flex-wrap: wrap; padding: 10px 8px; margin-bottom: 8px; border-radius: 12px; background: #fff7d6; border: 2px solid #f2b705; }
+.endbar .et { font-size: 17px; font-weight: 800; color: #6b4e00; }
+.btn.big { min-height: 52px; padding: 0 28px; font-size: 19px; font-weight: 800; border-radius: 14px; }
+.btn.big.primary { box-shadow: 0 0 0 3px rgba(242,183,5,.55); }
+.agrp .olds { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 0; }
+.assist .mt { width: 30px; height: 40px; border-radius: 6px; font-size: 19px; }
+.assist .mt.mj { font-size: 21px; }
+.assist .mset { gap: 2px; padding: 4px 4px 1px; border-radius: 8px; }
+.assist .mt.nw { box-shadow: 0 0 0 3px #f2b705, 0 0 8px #f2b705; margin: 0 3px 4px; }
+.assist .mt.mv::after { width: 9px; height: 9px; top: -4px; right: -4px; }
+.assist .agrp { gap: 8px; padding: 8px 0; }
+.assist .agrp .lab { font-size: 13px; min-width: 40px; }
+.assist .agrp .op { font-size: 18px; }
 .mt.old { opacity: 0.5; }
 .mset { display: inline-flex; gap: 1px; padding: 3px 3px 0; border-radius: 6px; background: #eef1f6; border: 1px solid var(--line); }
 .msets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
@@ -312,12 +330,19 @@ select.field { width: auto; }
 .card h3 { margin: 0 0 4px; font-size: 14px; color: var(--ink); letter-spacing: 0.04em; }
 .card p, .card li { margin: 0; font-size: 14px; color: #2c3444; }
 .card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 3px; }
+.lvctl { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.lvctl .stt { font-size: 13px; font-weight: 700; }
+.card .lvctl .stt { display: none; }
+.lvrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.lvrow .seg button { padding: 3px 8px; font-size: 12px; }
 .alog { display: flex; flex-direction: column; margin-top: 3px; }
 .agrp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--line); }
 .agrp .lab { font-size: 12px; font-weight: 700; color: #0f7b4f; min-width: 34px; }
 .agrp .op { color: var(--muted); font-weight: 700; }
-.mset.dim { opacity: 0.55; background: #e4e8ef; }
 .assist .alg { font-size: 11px; color: var(--muted); }
+.assist .alv { margin-left: auto; }
+.assist .alv button { padding: 2px 8px; font-size: 12px; }
+.mset.dim { opacity: 0.55; background: #e4e8ef; }
 .stbl { margin-top: 12px; overflow: auto; max-height: 220px; }
 .stbl .stt { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .stbl table { border-collapse: collapse; width: 100%; font-size: 13px; font-family: var(--num, system-ui); }
@@ -490,6 +515,7 @@ select.field { width: auto; }
   .top .strip { order: 5; flex: 1 1 100%; min-width: 0; }
 }
 .morewrap { display: none; position: relative; flex: none; }
+@media (min-width: 561px) { .morewrap { display: block; } }
 .moremenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 200px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 28px rgba(21, 26, 36, 0.22); }
 .moremenu .btn { width: 100%; justify-content: center; }
 .moremenu .mmrow .sizer { width: 100%; justify-content: space-between; }
@@ -497,9 +523,9 @@ select.field { width: auto; }
 .moremenu .sizer .szl { white-space: nowrap; flex: 1 1 auto; }
 .moremenu .sizer .btn { width: auto; flex: none; }
 @media (min-width: 561px) and (max-width: 1180px) {
-  .top .topx { display: none; }
-  .morewrap { display: block; order: 3; }
+  .morewrap { order: 3; }
   .top .menubtn { order: 4; }
+  .top .topx { order: 4; }
 }
 @media (min-width: 561px) {
   .top .strip { overflow: hidden; }
@@ -3145,7 +3171,7 @@ function makeGame(players, settings) {
     phase: 'play',
     settings: { timer: 0, initial: 30, ...(settings || {}) },
     players: players.map((p) => ({
-      id: p.id, name: p.name, bot: !!p.bot, tok: p.tok || null, peer: p.peer || null,
+      id: p.id, name: p.name, bot: !!p.bot, level: p.level || null, tok: p.tok || null, peer: p.peer || null,
       connected: p.bot ? true : p.connected !== false,
       hand: pool.splice(0, 14), melded: false, score: p.score || 0,
     })),
@@ -3346,29 +3372,34 @@ function removeFromSet(s, rm) {
   return segs.every((x) => analyzeSet(x)) ? segs : null;
 }
 
-/* 手牌配合「可以從桌面借出的牌」組新牌組,盡量多打出手牌。回傳 {sets, borrowed, usedHand, boardAfter} 或 null */
-function findMeldsBorrow(hand, board) {
+/* 手牌(含 Joker)配合「可以從桌面借出的牌」組新牌組,盡量多打出手牌。回傳 {sets, borrowed, usedHand, boardAfter} 或 null
+   可以同時向多個牌組、甚至同一組連續借多張(借完剩下的各段都要合規);手牌的 Joker 可以替身補缺 */
+function findMeldsBorrow(hand, board, adv) {
   const cands = [];
   board.forEach((s, si) => {
     const a = analyzeSet(s);
     if (!a) return;
-    for (const t of s) if (!T(t).j && removeFromSet(s, new Set([t]))) cands.push({ id: t, si });
+    for (const t of s) if (!T(t).j && ((adv && s.length >= 6) || removeFromSet(s, new Set([t])))) cands.push({ id: t, si });
   });
   if (!cands.length) return null;
+  const hj = adv ? hand.filter((id) => T(id).j) : [];
   const hst = Array.from({ length: 4 }, () => Array.from({ length: 14 }, () => []));
   const bst = Array.from({ length: 4 }, () => Array.from({ length: 14 }, () => []));
   for (const id of hand) if (!T(id).j) hst[T(id).c][T(id).n].push(id);
   for (const c of cands) bst[T(c.id).c][T(c.id).n].push(c.id);
   const hrem = hst.map((r) => r.map((a) => a.length)), brem = bst.map((r) => r.map((a) => a.length));
   const siOf = new Map(cands.map((c) => [c.id, c.si]));
-  const tpl = templates().filter((t) => t.cells.every(([c, n]) => hrem[c][n] + brem[c][n] > 0) && t.cells.some(([c, n]) => hrem[c][n] > 0));
+  const tpl = templates().filter((t) => t.cells.some(([c, n]) => hrem[c][n] > 0) && t.cells.filter(([c, n]) => hrem[c][n] + brem[c][n] === 0).length <= hj.length);
   const build = (picks) => {
     const hs = hst.map((r) => r.map((a) => a.slice())), bs = bst.map((r) => r.map((a) => a.slice()));
+    const jk = hj.slice();
     const sets = [], borrowed = new Set(), usedHand = [];
     for (const i of picks) {
       const set = [];
       for (const [c, n] of tpl[i].cells) {
-        if (hs[c][n].length) { const id = hs[c][n].shift(); set.push(id); usedHand.push(id); } else { const id = bs[c][n].shift(); set.push(id); borrowed.add(id); }
+        if (hs[c][n].length) { const id = hs[c][n].shift(); set.push(id); usedHand.push(id); }
+        else if (bs[c][n].length) { const id = bs[c][n].shift(); set.push(id); borrowed.add(id); }
+        else { const id = jk.shift(); set.push(id); usedHand.push(id); }
       }
       sets.push(set);
     }
@@ -3376,7 +3407,7 @@ function findMeldsBorrow(hand, board) {
   };
   const check = (picks) => {
     const r = build(picks);
-    if (!r.borrowed.size || !r.usedHand.length) return null;
+    if (!r.borrowed.size || !r.usedHand.some((id) => !T(id).j)) return null;
     const bySet = new Map();
     for (const id of r.borrowed) { const si = siOf.get(id); if (!bySet.has(si)) bySet.set(si, new Set()); bySet.get(si).add(id); }
     const after = [];
@@ -3388,29 +3419,34 @@ function findMeldsBorrow(hand, board) {
     }
     return { sets: r.sets, usedHand: r.usedHand, boardAfter: after };
   };
-  let bestVal = -1, bestPicks = null, nodes = 0;
+  let bestVal = -1e9, bestPicks = null, nodes = 0;
   const picks = [];
-  function dfs(start, val) {
+  function dfs(start, val, jleft) {
     if (val > bestVal && picks.length && check(picks)) { bestVal = val; bestPicks = picks.slice(); }
-    if (nodes++ > 20000) return;
+    if (nodes++ > (adv ? 30000 : 20000)) return;
     for (let i = start; i < tpl.length; i++) {
       const cells = tpl[i].cells;
-      if (!cells.every(([c, n]) => hrem[c][n] + brem[c][n] > 0)) continue;
+      let miss = 0;
+      for (const [c, n] of cells) if (hrem[c][n] + brem[c][n] === 0) miss++;
+      if (miss > jleft) continue;
       let hu = 0, bu = 0;
       const took = [];
-      for (const [c, n] of cells) { if (hrem[c][n] > 0) { hrem[c][n]--; hu++; took.push([c, n, 0]); } else { brem[c][n]--; bu++; took.push([c, n, 1]); } }
+      for (const [c, n] of cells) {
+        if (hrem[c][n] > 0) { hrem[c][n]--; hu++; took.push([c, n, 0]); }
+        else if (brem[c][n] > 0) { brem[c][n]--; bu++; took.push([c, n, 1]); }
+      }
       picks.push(i);
-      dfs(i, val + hu * 1000 - bu * 2 + tpl[i].pts * 0.01);
+      dfs(i, val + hu * 1000 - bu * 2 - miss * 50 + tpl[i].pts * 0.01, jleft - miss);
       picks.pop();
       for (const [c, n, k] of took) { if (k) brem[c][n]++; else hrem[c][n]++; }
     }
   }
-  dfs(0, 0);
+  dfs(0, 0, hj.length);
   return bestPicks ? check(bestPicks) : null;
 }
 
 /* 電腦出牌計畫:回傳 {board, placed} 或 null(抽牌) */
-function botPlan(hand, board, melded, minInitial) {
+function botPlan(hand, board, melded, minInitial, adv, jokerAlways) {
   const b = board.map((s) => s.slice());
   let h = hand.slice();
   const placed = [];
@@ -3492,22 +3528,29 @@ function botPlan(hand, board, melded, minInitial) {
             if (removeFromSet(b[sj], new Set([t]))) srcs.push({ rep: t, from: sj });
           }
         }
+        // 多餘的 Joker:拿走後牌組仍然成立(例如 9-10-11-12 後面多一隻 Joker 當 13)
+        const jOnly = removeFromSet(s, new Set([jid]));
+        if (jOnly) srcs.push({ rep: null, from: -2, segs: jOnly });
         for (const src of srcs) {
-          const s1 = s.map((x) => (x === jid ? src.rep : x));
-          if (!analyzeSet(s1)) continue;
           const nb = [];
           let ok = true;
-          b.forEach((x, i) => {
-            if (i === si) nb.push(s1);
-            else if (i === src.from) { const segs = removeFromSet(x, new Set([src.rep])); if (!segs) ok = false; else nb.push(...segs); }
-            else nb.push(x);
-          });
+          if (src.rep === null) {
+            b.forEach((x, i) => { if (i === si) nb.push(...src.segs); else nb.push(x); });
+          } else {
+            const s1 = s.map((x) => (x === jid ? src.rep : x));
+            if (!analyzeSet(s1)) continue;
+            b.forEach((x, i) => {
+              if (i === si) nb.push(s1);
+              else if (i === src.from) { const segs = removeFromSet(x, new Set([src.rep])); if (!segs) ok = false; else nb.push(...segs); }
+              else nb.push(x);
+            });
+          }
           if (!ok) continue;
-          const nh = src.from < 0 ? hn.filter((x) => x !== src.rep) : hn;
+          const nh = adv ? (src.from === -1 ? h.filter((x) => x !== src.rep) : h.slice()) : (src.from === -1 ? hn.filter((x) => x !== src.rep) : hn);
           const apply = (newSets, nbAfter, usedHand) => {
             b.length = 0;
             b.push(...nbAfter, ...newSets);
-            if (src.from < 0) { placed.push(src.rep); h = h.filter((x) => x !== src.rep); }
+            if (src.from === -1) { placed.push(src.rep); h = h.filter((x) => x !== src.rep); }
             take(usedHand);
           };
           // A: 換出來的 Joker + 手牌
@@ -3516,7 +3559,7 @@ function botPlan(hand, board, melded, minInitial) {
           // B: 換出來的 Joker 當替身 + 手牌 + 向桌面借牌
           for (let k = 0; k < 52; k++) {
             const fk = 200 + k;
-            const r = findMeldsBorrow(nh.concat(fk), nb);
+            const r = findMeldsBorrow(nh.concat(fk), nb, adv);
             if (!r || !r.usedHand.includes(fk)) continue;
             const fix = (x) => (x === fk ? jid : x);
             apply(r.sets.map((st) => st.map(fix)), r.boardAfter, r.usedHand.filter((x) => x !== fk));
@@ -3529,7 +3572,7 @@ function botPlan(hand, board, melded, minInitial) {
   };
   // 同時從幾個牌組借牌,配合手牌組成新牌組(例如藍2 + 從別組借藍3、藍4)
   const borrowMultiOnce = () => {
-    const r = findMeldsBorrow(h, b);
+    const r = findMeldsBorrow(h, b, adv);
     if (!r) return false;
     b.length = 0;
     b.push(...r.boardAfter, ...r.sets);
@@ -3546,18 +3589,24 @@ function botPlan(hand, board, melded, minInitial) {
     }
     return changed;
   };
-  for (let iter = 0; iter < 12; iter++) {
+  for (let iter = 0; iter < (adv ? 30 : 12); iter++) {
     let changed = false;
-    const m = findBestMelds(h, false, false);
+    const m = findBestMelds(h, false, !!adv || !!jokerAlways);
     if (m.sets.length) { b.push(...m.sets); take(m.sets.flat()); changed = true; }
     if (extendOnce(false)) changed = true;
-    if (!changed) changed = borrowOnce();
-    if (!changed) changed = splitOnce();
-    if (!changed) changed = borrowMultiOnce();
+    if (adv) {
+      if (!changed) changed = borrowMultiOnce();
+      if (!changed) changed = borrowOnce();
+      if (!changed) changed = splitOnce();
+    } else {
+      if (!changed) changed = borrowOnce();
+      if (!changed) changed = splitOnce();
+      if (!changed) changed = borrowMultiOnce();
+    }
     if (!changed) changed = freeJokerOnce();
     if (!changed) break;
   }
-  if (h.length > 0 && h.length <= JOKER_HAND_LIMIT) {
+  if (!jokerAlways && h.length > 0 && h.length <= JOKER_HAND_LIMIT) {
     const m2 = findBestMelds(h, false, true);
     if (m2.sets.length) { b.push(...m2.sets); take(m2.sets.flat()); extendOnce(false); }
   }
@@ -3580,6 +3629,7 @@ function solveCore(hand, board, opts) {
   const baseHR = hr, baseHJ = jh.length;
   if (!baseHR && !baseHJ) return null;
   const boardIds = new Set(board.flat());
+  const origKeys = new Set(board.map(setKey));
   const chosen = [];
   const seen = new Set();
   let best = { score: -Infinity, sets: null };
@@ -3658,7 +3708,9 @@ function solveCore(hand, board, opts) {
     const realUsed = realUsed0 + eReal, hjUsed = hjUsed0 + eJ;
     if (realUsed + hjUsed < 1) return;
     const win = realUsed === baseHR && hjUsed === baseHJ;
-    const score = 1000 * realUsed - 50 * hjUsed + (win ? 100000 : 0);
+    // 出牌數相同時,偏好「動到的舊牌組最少」的方案(每個被改動的舊牌組扣 0.5 分,遠小於 1 張牌或 1 隻 Joker 的差距)
+    const kept = all.filter((x) => origKeys.has(setKey(x))).length;
+    const score = 1000 * realUsed - 50 * hjUsed + (win ? 100000 : 0) - 0.5 * (board.length - kept);
     if (score > best.score) best = { score, sets: all.map((x) => x.slice()) };
   }
 
@@ -3718,7 +3770,7 @@ function solveFull(hand, board, opts) {
     if (lv === 1) cur = board.map((_, i) => i);
   }
   const maxLv = opts && opts.maxLevel != null ? opts.maxLevel + 1 : levels.length;
-  let bestPl = null, bestSc = -Infinity, last = '';
+  let bestPl = null, bestSc = -Infinity, bestIdx = null, last = '';
   for (let li = 0; li < Math.min(levels.length, maxLv); li++) {
     let idx = levels[li];
     if (opts && opts.maxDissolve && idx.length > opts.maxDissolve) {
@@ -3736,7 +3788,26 @@ function solveFull(hand, board, opts) {
     if (!r) continue;
     const full = { board: fixed.concat(r.board), placed: r.placed };
     const sc = planScore(full, hand);
-    if (sc > bestSc) { bestSc = sc; bestPl = full; }
+    if (sc > bestSc) { bestSc = sc; bestPl = full; bestIdx = idx; }
+  }
+  // 精簡:同樣的出牌數下,盡量減少被拆開的舊牌組(逐組試「這組其實不用動」,仍然出到同樣多的牌就採用)
+  if (bestPl && bestIdx) {
+    const t1 = Date.now(), cap = (opts && opts.reduceMs) || 350;
+    const changedOf = (pl, ids) => ids.filter((i) => !pl.board.some((x) => setKey(x) === setKey(board[i])));
+    let sub = changedOf(bestPl, bestIdx);
+    let improved = true;
+    while (improved && sub.length && Date.now() - t1 < cap) {
+      improved = false;
+      for (const i of sub) {
+        if (Date.now() - t1 >= cap) break;
+        const trial = sub.filter((x) => x !== i);
+        let r = null;
+        try { r = solveCore(hand, trial.map((k) => board[k]), { ms: Math.min(70, cap - (Date.now() - t1)) }); } catch (e) { r = null; }
+        if (!r) continue;
+        const full = { board: board.filter((_, k) => !trial.includes(k)).concat(r.board), placed: r.placed };
+        if (planScore(full, hand) >= bestSc) { bestPl = full; bestSc = planScore(full, hand); sub = changedOf(full, trial); improved = true; break; }
+      }
+    }
   }
   return bestPl;
 }
@@ -3750,10 +3821,11 @@ function planScore(plan, hand) {
   return 1000 * real - 50 * jk + (placed.length >= hand.length ? 100000 : 0);
 }
 function bestPlan(hand, board, melded, minInitial, level) {
-  let plan = botPlan(hand, board, melded, minInitial);
-  if (melded && level !== 'easy') {
+  if (level === 'normal') level = 'easy'; // 已移除「普通」難度:舊房間的設定當作簡單
+  let plan = botPlan(hand, board, melded, minInitial, level === 'normal', level === 'easy');
+  if (melded && level === 'hard') {
     let full = null;
-    const o = level === 'normal' ? { ms: 150, maxLevel: 0, maxDissolve: 3 } : { ms: 560 };
+    const o = { ms: 560 };
     try { full = solveFull(hand, board, o); } catch (e) { full = null; }
     if (full) {
       const r = checkMove(board, full.board, hand, melded, minInitial);
@@ -3766,7 +3838,7 @@ function bestPlan(hand, board, melded, minInitial, level) {
 /* 電腦回合:回傳 {type:'move', board} 或 {type:'draw'} */
 function botDecide(G, seat) {
   const p = G.players[seat];
-  const plan = bestPlan(p.hand, G.board, p.melded, G.settings.initial, G.settings.level);
+  const plan = bestPlan(p.hand, G.board, p.melded, G.settings.initial, p.level || G.settings.level);
   if (plan) {
     const r = checkMove(G.board, plan.board, p.hand, p.melded, G.settings.initial);
     if (r.ok) return { type: 'move', board: plan.board };
@@ -3795,7 +3867,7 @@ function movedTiles(prev, cur) {
 }
 
 if (typeof module !== 'undefined') {
-  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, bestPlan, solveFull, planScore, findBestMelds, findMeldsBorrow, shuffle, setKey, movedTiles };
+  module.exports = { T, TILES, analyzeSet, layoutSet, checkMove, newSetPoints, handValue, makeGame, playMove, drawTile, endGame, botDecide, botPlan, bestPlan, solveFull, planScore, findBestMelds, findMeldsBorrow, shuffle, setKey, movedTiles, diffGroups };
 }
 
 
@@ -3851,7 +3923,7 @@ if (typeof module !== 'undefined') {
       phase: G.phase, code: code || null, rev: G.rev, settings: G.settings, turn: G.turn, turnNo: G.turnNo,
       board: G.board, pool: G.pool.length, lastPlaced: G.lastPlaced || [], winner: G.winner, endReason: G.endReason,
       results: G.results, rounds: G.rounds || [], log: G.log.slice(-12),
-      players: G.players.map((p) => ({ id: p.id, name: p.name, bot: p.bot, peer: p.peer, connected: p.connected, count: p.hand.length, melded: p.melded, score: p.score })),
+      players: G.players.map((p) => ({ id: p.id, name: p.name, bot: p.bot, peer: p.peer, connected: p.connected, auto: !!p.auto, level: p.level || null, count: p.hand.length, melded: p.melded, score: p.score })),
     };
   }
 
@@ -3953,9 +4025,9 @@ if (typeof module !== 'undefined') {
     const d = botDecide(G, seat);
     if (d.type === 'move') {
       const r = playMove(G, seat, d.board);
-      if (r.ok) { if (who === 'assist') G.log.push({ k: ++G.logSeq, m: `(${p.name} 離線,由電腦代打)` }); hostBroadcast(); return; }
+      if (r.ok) { if (who === 'assist') G.log.push({ k: ++G.logSeq, m: `(${p.name} 離線,由電腦代打)` }); else if (who === 'auto') G.log.push({ k: ++G.logSeq, m: `(${p.name} 由電腦代打)` }); hostBroadcast(); return; }
     }
-    drawTile(G, seat, who === 'assist' ? '離線,由電腦代抽一張牌' : undefined);
+    drawTile(G, seat, who === 'assist' ? '離線,由電腦代抽一張牌' : who === 'auto' ? '電腦代抽一張牌' : undefined);
     hostBroadcast();
   }
   function hostTick() {
@@ -3968,6 +4040,14 @@ if (typeof module !== 'undefined') {
         if (S.G !== G || G.phase !== 'play' || G.turn !== seat) return;
         hostBotMove(seat, 'bot');
       }, 900 + Math.random() * 900);
+      return;
+    }
+    if (p.auto) {
+      S.botTimer = setTimeout(() => {
+        S.botTimer = null;
+        if (S.G !== G || G.phase !== 'play' || G.turn !== seat || !G.players[seat].auto) return;
+        hostBotMove(seat, 'auto');
+      }, 1200 + Math.random() * 900);
       return;
     }
     if (!p.connected && now - (G.turnStartedAt || now) > 6000) { hostBotMove(seat, 'assist'); return; }
@@ -4008,6 +4088,24 @@ if (typeof module !== 'undefined') {
     const d = m.data || {};
     if (d.type === 'move') hostMove(seat, d.board, m.peer);
     else if (d.type === 'draw') hostDraw(seat);
+    else if (d.type === 'auto') setAuto(seat, !!d.on);
+    else if (d.type === 'level') setLevel(seat, d.level);
+  }
+  const LV = { easy: '簡單', hard: '困難' };
+  const nl = (v) => (v === 'normal' ? 'easy' : v);
+  try { const v = LS.get('mk-alv'); if (LV[v]) S.assistLv = v; } catch (e) {}
+  function setLevel(seat, lv) {
+    const G = S.G, p = G && G.players[seat];
+    if (!p || !LV[lv] || p.level === lv) return;
+    p.level = lv;
+    hostBroadcast();
+  }
+  function setAuto(seat, on) {
+    const G = S.G, p = G && G.players[seat];
+    if (!p || p.bot || !!p.auto === on) return;
+    p.auto = on;
+    G.log.push({ k: ++G.logSeq, m: on ? `${p.name} 開啟電腦代打` : `${p.name} 取消電腦代打` });
+    hostBroadcast();
   }
   function onStateMsg(m) {
     if (S.isHost || m.sameTab) return;
@@ -4266,14 +4364,14 @@ if (typeof module !== 'undefined') {
     const cur = snapWork();
     if (S.pendSnap && S.pendSnap !== cur) { (S.undo = S.undo || []).push(S.pendSnap); if (S.undo.length > 60) S.undo.shift(); }
     S.pendSnap = null;
-    S.assist = null; S.hint = null; render(); scheduleDraft();
+    render(); scheduleDraft(); // 移動牌後不再自動關閉智能建議(只在按「關閉」或換人時收起)
   }
   function undoStep() {
     if (!isMyTurn() || !S.work || !S.undo || !S.undo.length) return;
     const o = JSON.parse(S.undo.pop());
     S.work = { board: o.b, placed: new Set(o.p) }; S.rackOrder = o.r;
     S.sel = null; S.msel = []; S.groups = []; S.drawArmed = false; S.pendSnap = null;
-    S.assist = null; S.hint = null; render(); scheduleDraft();
+    render(); scheduleDraft();
   }
   function scheduleDraft() {
     if (!S.room || !isMyTurn() || S.draftTimer) return;
@@ -4411,23 +4509,27 @@ if (typeof module !== 'undefined') {
       const add = g.n[0].filter((id) => !g.o[0].includes(id));
       return `<div class="agrp"><span class="lab">接牌</span>${dim(g.o[0])}<span class="op">＋</span><span class="mset">${add.map((id) => miniTile(id, placed.has(id))).join('')}</span><span class="op">＝</span>${hl(g.n[0])}</div>`;
     }
-    return `<div class="agrp"><span class="lab">重組</span>${g.o.map(dim).join('')}<span class="op">→</span>${g.n.map(hl).join('')}</div>`;
+    // 重組:只畫新牌組(有變動的),被搬過來的牌加綠點;原本的牌組收埋,撳開才看
+    const mv = movedTiles(g.o, g.n);
+    const newSet = (st) => miniSet(st, placed, mv);
+    return `<div class="agrp"><span class="lab">重組</span>${g.n.map(newSet).join('')}<details class="oldsets" open><summary>原本 ${g.o.length} 組</summary><div class="olds">${g.o.map(dim).join('')}</div></details></div>`;
   }
   function planSuggestion() {
     const pub = S.pub, ini = pub.settings.initial;
-    const plan = bestPlan(S.hand, pub.board, S.melded, ini, 'hard');
+    const lv = nl(S.assistLv || pub.settings.level || 'hard');
+    const plan = bestPlan(S.hand, pub.board, S.melded, ini, lv);
     if (plan) {
       const r = checkMove(pub.board, plan.board, S.hand, S.melded, ini);
       if (r.ok) {
         const oldKeys = new Set(pub.board.map(setKey)), newKeys = new Set(plan.board.map(setKey));
         const made = plan.board.filter((x) => !oldKeys.has(setKey(x)));
         const broken = pub.board.filter((x) => !newKeys.has(setKey(x)));
-        return { ok: true, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), groups: diffGroups(pub.board, plan.board), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
+        return { ok: true, lv, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), groups: diffGroups(pub.board, plan.board), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
       }
     }
     let miss = null;
     if (!S.melded) { const m = findBestMelds(S.hand, true, true); miss = Math.max(0, ini - m.points); }
-    return { ok: false, miss };
+    return { ok: false, lv, miss };
   }
   function doAssist() {
     if (S.pub && S.pub.settings.assist === false) return;
@@ -4449,11 +4551,11 @@ if (typeof module !== 'undefined') {
     const a = S.assist;
     if (!a || !isMyTurn()) return '';
     const g = a.sug;
-    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議:可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
+    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議:可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span><span class="seg alv">${Object.entries(LV).map(([v, l]) => `<button data-a="assistLv" data-n="${v}" class="${g.lv === v ? 'on' : ''}">${l}</button>`).join('')}</span></div>
       ${g.groups.map((x) => assistGroupHTML(x, new Set(g.placed))).join('')}
-      <div class="alg">黃色底線 = 你手上要打出的牌 · 灰色 = 桌面原有的牌組</div>
+      <div class="alg">黃框 = 你手上要打出的牌 · 綠點 = 由別組搬過來的牌 · 灰色 = 桌面原有的牌組(撳「原本」可展開)</div>
       <div class="ar2"><button class="btn small primary" data-a="assistApply">照建議擺牌</button><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
-    return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
+    return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b><span class="seg alv">${Object.entries(LV).map(([v, l]) => `<button data-a="assistLv" data-n="${v}" class="${g.lv === v ? 'on' : ''}">${l}</button>`).join('')}</span></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
   }
   function resetWork() {
     if (!isMyTurn()) return;
@@ -4498,8 +4600,8 @@ if (typeof module !== 'undefined') {
     if (t.j) return `<div class="tile joker ${id === 104 ? 'jr' : 'jk'}${cls}" data-id="${id}"${st}${gb}><svg class="smile" viewBox="0 0 40 40"><circle cx="20" cy="20" r="16.5" fill="none" stroke="currentColor" stroke-width="3.4"/><circle cx="14" cy="16" r="2.8" fill="currentColor"/><circle cx="26" cy="16" r="2.8" fill="currentColor"/><path d="M11.5 24.5 q8.5 8 17 0" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></svg>${o.jv ? `<s>${o.jv}</s>` : ''}</div>`;
     return `<div class="tile c${t.c}${cls}" data-id="${id}"${st}${gb}><b>${t.n}</b></div>`;
   }
-  const miniTile = (id, nw) => { const x = T(id); return x.j ? `<i class="mt mj${nw ? ' nw' : ''}">☺</i>` : `<i class="mt c${x.c}${nw ? ' nw' : ''}">${x.n}</i>`; };
-  const miniSet = (ids, hl) => `<span class="mset">${ids.map((id) => miniTile(id, hl && hl.has(id))).join('')}</span>`;
+  const miniTile = (id, nw, mv) => { const x = T(id); return x.j ? `<i class="mt mj${nw ? ' nw' : ''}${mv ? ' mv' : ''}">☺</i>` : `<i class="mt c${x.c}${nw ? ' nw' : ''}${mv ? ' mv' : ''}">${x.n}</i>`; };
+  const miniSet = (ids, hl, mv) => `<span class="mset">${ids.map((id) => miniTile(id, hl && hl.has(id), mv && mv.has(id) && !(hl && hl.has(id)))).join('')}</span>`;
   const miniAdded = (f) => (f && f.g && f.g.length ? `<span class="alog">${f.g.map((x) => assistGroupHTML(x, new Set(f.a || []))).join('')}</span>` : f && f.t && f.t.length ? `<span class="msets">${f.t.map((st) => miniSet(st, new Set(f.a || []))).join('')}</span>` : '');
   const dragId = () => (drag && drag.active ? drag.id : null);
 
@@ -4524,7 +4626,7 @@ if (typeof module !== 'undefined') {
           <div class="row" style="margin-top:8px"><span class="hint lbl">智能建議</span>
             <div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="soloAssist" data-n="${v ? 1 : 0}" class="${S.soloAssist === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <div class="row" style="margin-top:8px"><span class="hint lbl">電腦難度</span>
-            <div class="seg">${[['easy', '簡單'], ['normal', '普通'], ['hard', '困難']].map(([v, l]) => `<button data-a="soloLevel" data-n="${v}" class="${S.soloLevel === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+            <div class="seg">${[['easy', '簡單'], ['hard', '困難']].map(([v, l]) => `<button data-a="soloLevel" data-n="${v}" class="${S.soloLevel === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
           <button class="btn primary wide" style="margin-top:12px" data-a="solo"${dis}>開始單人遊戲</button></div>
         <hr class="sep">
         <div><h2>線上對戰</h2>
@@ -4540,7 +4642,7 @@ if (typeof module !== 'undefined') {
 
   function playerRows(pub, withKick) {
     return pub.players.map((p) => `<li><span class="nm">${esc(p.name)}${p.id === S.myId ? '(你)' : ''}</span>
-      ${p.bot ? '<span class="badge">電腦</span>' : ''}${pub.players[0] && p.id === pub.players[0].id && !p.bot ? '<span class="badge host">房主</span>' : ''}${!p.connected ? '<span class="badge off">離線</span>' : ''}</li>`).join('');
+      ${p.bot ? '<span class="badge">電腦</span>' : ''}${p.auto ? '<span class="badge">代打中</span>' : ''}${pub.players[0] && p.id === pub.players[0].id && !p.bot ? '<span class="badge host">房主</span>' : ''}${!p.connected ? '<span class="badge off">離線</span>' : ''}</li>`).join('');
   }
   const inviteURL = () => location.origin + location.pathname + '?r=' + S.code;
   function qrSVG(url) {
@@ -4564,7 +4666,7 @@ if (typeof module !== 'undefined') {
         <select id="selTimer" class="field" data-a="timer">${[[0, '不計時'], [60, '60 秒'], [90, '90 秒']].map(([v, l]) => `<option value="${v}"${pub.settings.timer === v ? ' selected' : ''}>${l}</option>`).join('')}</select></div>
       <div class="row"><span class="hint">智能建議</span><div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="setAssist" data-n="${v ? 1 : 0}" class="${(pub.settings.assist !== false) === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <button class="btn primary" data-a="start"${n < 2 ? ' disabled' : ''}>開始遊戲(${n} 人)</button>
-      <div class="row"><span class="hint">電腦難度</span><div class="seg">${[['easy', '簡單'], ['normal', '普通'], ['hard', '困難']].map(([v, l]) => `<button data-a="setLevel" data-n="${v}" class="${(pub.settings.level || 'hard') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+      <div class="row"><span class="hint">電腦難度</span><div class="seg">${[['easy', '簡單'], ['hard', '困難']].map(([v, l]) => `<button data-a="setLevel" data-n="${v}" class="${nl(pub.settings.level || 'hard') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">本局設定:${pub.settings.timer > 0 ? '每回合 ' + pub.settings.timer + ' 秒' : '不計時'} · 智能建議${pub.settings.assist === false ? '關閉' : '開啟'}</p><p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
     return `<div class="lobby"><div class="hero"><h1>魔橋</h1></div>
       <div class="panel">
@@ -4583,9 +4685,11 @@ if (typeof module !== 'undefined') {
     if (S.hostGone) return { cls: 'bad', t: '房主似乎離線了,牌局暫停' };
     if (!isMyTurn()) {
       if (cur.bot) return { cls: 'mute', t: `${cur.name}(電腦)思考中…` };
+      if (cur.auto) return { cls: 'mute', t: `${cur.name} 電腦代打中…` };
       const drafting = S.draft && S.draft.n === pub.turnNo;
       return { cls: 'mute', t: `輪到 ${cur.name}${!cur.connected ? '(離線)' : drafting ? ',正在擺牌…' : ''}` };
     }
+    if (cur.auto) return { cls: 'mute', t: '電腦代打中…想自己出牌請按「電腦代打:開」取消。' };
     const c = turnCheck();
     if (!c || !c.dirty) return { cls: '', t: S.melded ? '把手牌拖到桌面,或按「抽牌」。' : '首次出牌只能用自己的手牌,不能動桌面上的牌。' };
     if (c.r.ok) return { cls: 'ok', t: `可以完成回合了(打出 ${c.r.added.length} 張${!S.melded ? `,${c.pts} 點` : ''})` };
@@ -4653,6 +4757,7 @@ if (typeof module !== 'undefined') {
     const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
     const rs = S.replay && S.replay.idx > 0 ? S.replay.steps[S.replay.idx - 1] : null;
     const replayCap = rs ? `<div class="replaycap"><span class="rn">${esc(rs.name)}</span>${rs.added && rs.added.length ? `<span>打出 ${rs.added.length} 張牌</span><span class="msets">${rs.added.slice(0, 14).map((id) => miniTile(id)).join('')}</span>` : rs.changed ? '<span>重新整理了桌面</span>' : '<span>抽了一張牌</span><i class="mt back"></i>'}</div>` : '';
+    const meP = pub.players.find((p) => p.id === S.myId);
     const canReplay = pub.phase === 'play' && !S.replay && replaySteps().length > 0;
     const flEl = S.turnFlash ? Date.now() - S.turnFlash : -1;
     const flash = my && flEl >= 0 && flEl < 2600;
@@ -4662,16 +4767,15 @@ if (typeof module !== 'undefined') {
         <span class="meta">${pub.code ? `房間 <b>${esc(pub.code)}</b>` : '單人'}</span>
         <div class="players">${chips}</div>
         <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b>${!S.replay && lastEv && lastEv.a ? `<span class="msets">${lastEv.a.slice(0, 12).map((id) => miniTile(id)).join('')}</span>` : ''}</span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
-        <span class="sizer topx" title="牌的大小">${sizerHTML}</span>${`<span class="topx">${sndBtn}</span>`}
-        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">更多 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>` : ''}</span>
+        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">設定 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="rules">規則</button></div>` : ''}</span>
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
-        <button class="btn small topx" data-a="rules">規則</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
       <div class="tablearea">${replayCap}<div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
       <div class="deck${my ? ' mine' : ''}${flash ? ' flash' : ''}"${flash ? ` style="animation-delay:-${flEl}ms"` : ''}>
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
+        ${pub.phase === 'end' && S.hideResult ? `<div class="endbar"><span class="et">牌局已結束</span><button class="btn big" data-a="showResult">顯示結果</button>${S.isHost ? '<button class="btn big primary" data-a="again">再來一局</button>' : '<span class="hint">等待房主開始下一局…</span>'}</div>` : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}
-          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}${pub.phase === 'end' && S.hideResult ? `<button class="btn small" data-a="showResult">顯示結果</button>${S.isHost ? '<button class="btn small primary" data-a="again">再來一局</button>' : '<span class="hint">等待房主開始下一局…</span>'}` : ''}</div></div></div>
+          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${pub.phase === 'play' && meP ? `<button class="btn small autobtn${meP.auto ? ' on' : ''}" data-a="auto">電腦代打:${meP.auto ? '開' : '關'}</button>` : ''}${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
         ${assistHTML()}
         <div class="rackwrap">
         <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id) || S.groups.some((g) => g.includes(id)), g: S.groups.findIndex((g) => g.includes(id)) + 1, fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div></div>
@@ -4835,8 +4939,8 @@ if (typeof module !== 'undefined') {
   document.documentElement.style.setProperty('--k', String(S.k));
   function doAction(k, el) {
     switch (k) {
-      case 'soloLevel': S.soloLevel = ['easy', 'normal'].includes(el.dataset.n) ? el.dataset.n : 'hard'; render(); break;
-      case 'setLevel': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.level = ['easy', 'normal'].includes(el.dataset.n) ? el.dataset.n : 'hard'; hostBroadcast(); } break;
+      case 'soloLevel': S.soloLevel = el.dataset.n === 'easy' ? el.dataset.n : 'hard'; render(); break;
+      case 'setLevel': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.level = el.dataset.n === 'easy' ? el.dataset.n : 'hard'; S.G.players.forEach((p) => { p.level = null; }); hostBroadcast(); } break;
       case 'soloAssist': S.soloAssist = el.dataset.n === '1'; render(); break;
       case 'setAssist': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.assist = el.dataset.n === '1'; hostBroadcast(); } break;
       case 'soloTimer': S.soloTimer = +el.dataset.n; render(); break;
@@ -4847,6 +4951,7 @@ if (typeof module !== 'undefined') {
       case 'join': joinRoom(($('#inCode') || {}).value); break;
       case 'resume': resumeHost(); break;
       case 'rules': S.modal = 'rules'; render(); break;
+      case 'assistLv': if (LV[el.dataset.n]) { S.assistLv = el.dataset.n; LS.set('mk-alv', el.dataset.n); if (S.assist && isMyTurn()) doAssist(); else render(); } break;
       case 'closeRules': S.modal = null; render(); break;
       case 'replay': startReplay(); break;
       case 'replayStop': stopReplay(); break;
@@ -4874,6 +4979,7 @@ if (typeof module !== 'undefined') {
       case 'putmulti': moveMulti({ kind: 'board' }); break;
       case 'putgroups': putGroups(); break;
       case 'draw': drawAction(); break;
+      case 'auto': { const me = S.pub && S.pub.players.find((p) => p.id === S.myId); if (!me || S.pub.phase !== 'play') break; const on = !me.auto; if (S.isHost) setAuto(S.G.players.findIndex((p) => p.id === S.myId), on); else netEmit('act', { type: 'auto', on }); break; }
       case 'assist': doAssist(); break;
       case 'assistApply': applyAssist(); break;
       case 'assistClose': S.assist = null; S.hint = null; render(); break;

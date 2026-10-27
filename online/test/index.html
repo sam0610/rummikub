@@ -287,6 +287,14 @@ select.field { width: auto; }
 .agrp details.oldsets { flex-basis: 100%; font-size: 12px; color: var(--muted); }
 .agrp details.oldsets summary { cursor: pointer; padding: 2px 0; }
 .agrp .olds { display: flex; flex-wrap: wrap; gap: 4px; padding: 3px 0; }
+.assist .mt { width: 30px; height: 40px; border-radius: 6px; font-size: 19px; }
+.assist .mt.mj { font-size: 21px; }
+.assist .mset { gap: 2px; padding: 4px 4px 1px; border-radius: 8px; }
+.assist .mt.nw { box-shadow: 0 0 0 3px #f2b705, 0 0 8px #f2b705; margin: 0 3px 4px; }
+.assist .mt.mv::after { width: 9px; height: 9px; top: -4px; right: -4px; }
+.assist .agrp { gap: 8px; padding: 8px 0; }
+.assist .agrp .lab { font-size: 13px; min-width: 40px; }
+.assist .agrp .op { font-size: 18px; }
 .mt.old { opacity: 0.5; }
 .mset { display: inline-flex; gap: 1px; padding: 3px 3px 0; border-radius: 6px; background: #eef1f6; border: 1px solid var(--line); }
 .msets { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
@@ -4352,14 +4360,14 @@ if (typeof module !== 'undefined') {
     const cur = snapWork();
     if (S.pendSnap && S.pendSnap !== cur) { (S.undo = S.undo || []).push(S.pendSnap); if (S.undo.length > 60) S.undo.shift(); }
     S.pendSnap = null;
-    S.assist = null; S.hint = null; render(); scheduleDraft();
+    render(); scheduleDraft(); // 移動牌後不再自動關閉智能建議(只在按「關閉」或換人時收起)
   }
   function undoStep() {
     if (!isMyTurn() || !S.work || !S.undo || !S.undo.length) return;
     const o = JSON.parse(S.undo.pop());
     S.work = { board: o.b, placed: new Set(o.p) }; S.rackOrder = o.r;
     S.sel = null; S.msel = []; S.groups = []; S.drawArmed = false; S.pendSnap = null;
-    S.assist = null; S.hint = null; render(); scheduleDraft();
+    render(); scheduleDraft();
   }
   function scheduleDraft() {
     if (!S.room || !isMyTurn() || S.draftTimer) return;
@@ -4500,7 +4508,7 @@ if (typeof module !== 'undefined') {
     // 重組:只畫新牌組(有變動的),被搬過來的牌加綠點;原本的牌組收埋,撳開才看
     const mv = movedTiles(g.o, g.n);
     const newSet = (st) => miniSet(st, placed, mv);
-    return `<div class="agrp"><span class="lab">重組</span>${g.n.map(newSet).join('')}<details class="oldsets"><summary>原本 ${g.o.length} 組</summary><div class="olds">${g.o.map(dim).join('')}</div></details></div>`;
+    return `<div class="agrp"><span class="lab">重組</span>${g.n.map(newSet).join('')}<details class="oldsets" open><summary>原本 ${g.o.length} 組</summary><div class="olds">${g.o.map(dim).join('')}</div></details></div>`;
   }
   function planSuggestion() {
     const pub = S.pub, ini = pub.settings.initial;
@@ -5123,4 +5131,4 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 11:04</div>
+<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 11:21</div>

@@ -3769,7 +3769,7 @@ function bestPlan(hand, board, melded, minInitial, level) {
   let plan = botPlan(hand, board, melded, minInitial);
   if (melded && level !== 'easy') {
     let full = null;
-    const o = level === 'normal' ? { ms: 150, maxLevel: 0, maxDissolve: 3 } : { ms: 560 };
+    const o = level === 'normal' ? { ms: 250, maxLevel: 2, maxDissolve: 8 } : { ms: 560 };
     try { full = solveFull(hand, board, o); } catch (e) { full = null; }
     if (full) {
       const r = checkMove(board, full.board, hand, melded, minInitial);
@@ -5074,4 +5074,4 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:43</div>
+<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 09:09</div>

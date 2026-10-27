@@ -318,9 +318,10 @@ select.field { width: auto; }
 .card .lvctl .stt { display: none; }
 .lvrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .lvrow .seg button { padding: 3px 8px; font-size: 12px; }
-.assist .agrp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--line); }
-.assist .agrp .lab { font-size: 12px; font-weight: 700; color: #0f7b4f; min-width: 34px; }
-.assist .agrp .op { color: var(--muted); font-weight: 700; }
+.alog { display: flex; flex-direction: column; margin-top: 3px; }
+.agrp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--line); }
+.agrp .lab { font-size: 12px; font-weight: 700; color: #0f7b4f; min-width: 34px; }
+.agrp .op { color: var(--muted); font-weight: 700; }
 .assist .alg { font-size: 11px; color: var(--muted); }
 .assist .alv { margin-left: auto; }
 .assist .alv button { padding: 2px 8px; font-size: 12px; }
@@ -497,6 +498,7 @@ select.field { width: auto; }
   .top .strip { order: 5; flex: 1 1 100%; min-width: 0; }
 }
 .morewrap { display: none; position: relative; flex: none; }
+@media (min-width: 561px) { .morewrap { display: block; } }
 .moremenu { position: absolute; right: 0; top: calc(100% + 6px); z-index: 60; min-width: 200px; display: flex; flex-direction: column; align-items: stretch; gap: 8px; padding: 10px; background: var(--surface); border: 1px solid var(--line); border-radius: 14px; box-shadow: 0 10px 28px rgba(21, 26, 36, 0.22); }
 .moremenu .btn { width: 100%; justify-content: center; }
 .moremenu .mmrow .sizer { width: 100%; justify-content: space-between; }
@@ -504,9 +506,9 @@ select.field { width: auto; }
 .moremenu .sizer .szl { white-space: nowrap; flex: 1 1 auto; }
 .moremenu .sizer .btn { width: auto; flex: none; }
 @media (min-width: 561px) and (max-width: 1180px) {
-  .top .topx { display: none; }
-  .morewrap { display: block; order: 3; }
+  .morewrap { order: 3; }
   .top .menubtn { order: 4; }
+  .top .topx { order: 4; }
 }
 @media (min-width: 561px) {
   .top .strip { overflow: hidden; }
@@ -3199,12 +3201,33 @@ function advance(G) {
   G.turnNo++;
 }
 
+/* 把「拆掉的舊牌組」和「新出現的牌組」按共用的牌連起來,每一塊分成:接牌 / 新組 / 重組 */
+function diffGroups(oldBoard, newBoard) {
+  const oldKeys = new Set(oldBoard.map(setKey)), newKeys = new Set(newBoard.map(setKey));
+  const olds = oldBoard.filter((x) => !newKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
+  const news = newBoard.filter((x) => !oldKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
+  const par = olds.concat(news).map((_, i) => i);
+  const find = (i) => (par[i] === i ? i : (par[i] = find(par[i])));
+  const owner = new Map();
+  olds.forEach((s, i) => s.forEach((id) => owner.set(id, i)));
+  news.forEach((s, j) => s.forEach((id) => { if (owner.has(id)) par[find(owner.get(id))] = find(olds.length + j); }));
+  const comps = new Map();
+  olds.forEach((s, i) => { const r = find(i); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).o.push(s); });
+  news.forEach((s, j) => { const r = find(olds.length + j); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).n.push(s); });
+  return [...comps.values()].map((c) => {
+    if (!c.o.length) return { kind: 'new', o: c.o, n: c.n };
+    if (c.o.length === 1 && c.n.length === 1 && c.o[0].every((id) => c.n[0].includes(id))) return { kind: 'ext', o: c.o, n: c.n };
+    return { kind: 'redo', o: c.o, n: c.n };
+  }).sort((a, b) => ({ ext: 0, new: 1, redo: 2 }[a.kind] - { ext: 0, new: 1, redo: 2 }[b.kind]));
+}
+
 function playMove(G, seat, nextBoard) {
   const p = G.players[seat];
   if (!Array.isArray(nextBoard)) return { ok: false, err: '資料錯誤' };
   const r = checkMove(G.board, nextBoard, p.hand, p.melded, G.settings.initial);
   if (!r.ok) return r;
   const added = new Set(r.added);
+  const oldBoard = G.board;
   p.hand = p.hand.filter((id) => !added.has(id));
   G.board = nextBoard.map((s) => layoutSet(s).ids);
   p.melded = true;
@@ -3212,7 +3235,7 @@ function playMove(G, seat, nextBoard) {
   G.stall = 0;
   G.rev++;
   const addedSet = new Set(r.added);
-  glog(G, `${p.name} 打出 ${r.added.length} 張牌`, { a: r.added.slice(), t: G.board.filter((st) => st.some((x) => addedSet.has(x))).map((st) => st.slice()) });
+  glog(G, `${p.name} 打出 ${r.added.length} 張牌`, { a: r.added.slice(), t: G.board.filter((st) => st.some((x) => addedSet.has(x))).map((st) => st.slice()), g: diffGroups(oldBoard, G.board) });
   if (p.hand.length === 0) endGame(G, seat, 'out');
   else advance(G);
   return { ok: true, added: r.added };
@@ -4213,7 +4236,7 @@ if (typeof module !== 'undefined') {
     } else { S.hist = []; S.work = null; S.sel = null; S.msel = []; S.groups = []; if (pub.phase === 'end' && (!prev || prev.phase !== 'end')) S.hideResult = false; }
     const logs = pub.log || [];
     if (logs.length && logs[logs.length - 1].k < S.lastK) S.lastK = 0; // 新局重置
-    for (const e of logs) if (e.k > S.lastK) { S.feed.push({ m: e.m, t: e.t, a: e.a }); S.lastK = e.k; }
+    for (const e of logs) if (e.k > S.lastK) { S.feed.push({ m: e.m, t: e.t, a: e.a, g: e.g }); S.lastK = e.k; }
     if (S.feed.length > 80) S.feed.splice(0, S.feed.length - 80);
     render();
   }
@@ -4414,25 +4437,6 @@ if (typeof module !== 'undefined') {
     const n = L.ids.map(T).find((t) => !t.j);
     return n.n + ' 組合:' + L.ids.map((id) => (T(id).j ? '百搭' : CN[T(id).c])).join('、');
   }
-  /* 把「拆掉的舊牌組」和「新出現的牌組」按共用的牌連起來,每一塊分成:接牌 / 新組 / 重組 */
-  function diffGroups(oldBoard, newBoard) {
-    const oldKeys = new Set(oldBoard.map(setKey)), newKeys = new Set(newBoard.map(setKey));
-    const olds = oldBoard.filter((x) => !newKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
-    const news = newBoard.filter((x) => !oldKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
-    const par = olds.concat(news).map((_, i) => i);
-    const find = (i) => (par[i] === i ? i : (par[i] = find(par[i])));
-    const owner = new Map();
-    olds.forEach((s, i) => s.forEach((id) => owner.set(id, i)));
-    news.forEach((s, j) => s.forEach((id) => { if (owner.has(id)) par[find(owner.get(id))] = find(olds.length + j); }));
-    const comps = new Map();
-    olds.forEach((s, i) => { const r = find(i); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).o.push(s); });
-    news.forEach((s, j) => { const r = find(olds.length + j); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).n.push(s); });
-    return [...comps.values()].map((c) => {
-      if (!c.o.length) return { kind: 'new', o: c.o, n: c.n };
-      if (c.o.length === 1 && c.n.length === 1 && c.o[0].every((id) => c.n[0].includes(id))) return { kind: 'ext', o: c.o, n: c.n };
-      return { kind: 'redo', o: c.o, n: c.n };
-    }).sort((a, b) => ({ ext: 0, new: 1, redo: 2 }[a.kind] - { ext: 0, new: 1, redo: 2 }[b.kind]));
-  }
   function assistGroupHTML(g, placed) {
     const dim = (s) => `<span class="mset dim">${s.map((id) => miniTile(id)).join('')}</span>`;
     const hl = (s) => miniSet(s, placed);
@@ -4531,7 +4535,7 @@ if (typeof module !== 'undefined') {
   }
   const miniTile = (id, nw) => { const x = T(id); return x.j ? `<i class="mt mj${nw ? ' nw' : ''}">☺</i>` : `<i class="mt c${x.c}${nw ? ' nw' : ''}">${x.n}</i>`; };
   const miniSet = (ids, hl) => `<span class="mset">${ids.map((id) => miniTile(id, hl && hl.has(id))).join('')}</span>`;
-  const miniAdded = (f) => (f && f.t && f.t.length ? `<span class="msets">${f.t.map((st) => miniSet(st, new Set(f.a || []))).join('')}</span>` : '');
+  const miniAdded = (f) => (f && f.g && f.g.length ? `<span class="alog">${f.g.map((x) => assistGroupHTML(x, new Set(f.a || []))).join('')}</span>` : f && f.t && f.t.length ? `<span class="msets">${f.t.map((st) => miniSet(st, new Set(f.a || []))).join('')}</span>` : '');
   const dragId = () => (drag && drag.active ? drag.id : null);
 
   function lobbyHTML() {
@@ -4697,10 +4701,8 @@ if (typeof module !== 'undefined') {
         <span class="meta">${pub.code ? `房間 <b>${esc(pub.code)}</b>` : '單人'}</span>
         <div class="players">${chips}</div>
         <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b>${!S.replay && lastEv && lastEv.a ? `<span class="msets">${lastEv.a.slice(0, 12).map((id) => miniTile(id)).join('')}</span>` : ''}</span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
-        <span class="sizer topx" title="牌的大小">${sizerHTML}</span>${`<span class="topx">${sndBtn}</span>`}
-        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">更多 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="level">電腦強度</button><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>` : ''}</span>
+        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">設定 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="level">電腦強度</button><button class="btn small" data-a="rules">規則</button></div>` : ''}</span>
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
-        <button class="btn small topx" data-a="rules">規則</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
       <div class="tablearea">${replayCap}<div class="board" id="board">${setsHTML}${my ? '<div class="newset">拖到空白處 = 新牌組</div>' : ''}${board.length === 0 && !my ? '<div class="empty">桌面還沒有牌。</div>' : ''}</div></div>
       <div class="deck${my ? ' mine' : ''}${flash ? ' flash' : ''}"${flash ? ` style="animation-delay:-${flEl}ms"` : ''}>
@@ -5065,4 +5067,4 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:25</div>
+<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:33</div>

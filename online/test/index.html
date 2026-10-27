@@ -3355,29 +3355,34 @@ function removeFromSet(s, rm) {
   return segs.every((x) => analyzeSet(x)) ? segs : null;
 }
 
-/* 手牌配合「可以從桌面借出的牌」組新牌組,盡量多打出手牌。回傳 {sets, borrowed, usedHand, boardAfter} 或 null */
-function findMeldsBorrow(hand, board) {
+/* 手牌(含 Joker)配合「可以從桌面借出的牌」組新牌組,盡量多打出手牌。回傳 {sets, borrowed, usedHand, boardAfter} 或 null
+   可以同時向多個牌組、甚至同一組連續借多張(借完剩下的各段都要合規);手牌的 Joker 可以替身補缺 */
+function findMeldsBorrow(hand, board, adv) {
   const cands = [];
   board.forEach((s, si) => {
     const a = analyzeSet(s);
     if (!a) return;
-    for (const t of s) if (!T(t).j && removeFromSet(s, new Set([t]))) cands.push({ id: t, si });
+    for (const t of s) if (!T(t).j && ((adv && s.length >= 6) || removeFromSet(s, new Set([t])))) cands.push({ id: t, si });
   });
   if (!cands.length) return null;
+  const hj = adv ? hand.filter((id) => T(id).j) : [];
   const hst = Array.from({ length: 4 }, () => Array.from({ length: 14 }, () => []));
   const bst = Array.from({ length: 4 }, () => Array.from({ length: 14 }, () => []));
   for (const id of hand) if (!T(id).j) hst[T(id).c][T(id).n].push(id);
   for (const c of cands) bst[T(c.id).c][T(c.id).n].push(c.id);
   const hrem = hst.map((r) => r.map((a) => a.length)), brem = bst.map((r) => r.map((a) => a.length));
   const siOf = new Map(cands.map((c) => [c.id, c.si]));
-  const tpl = templates().filter((t) => t.cells.every(([c, n]) => hrem[c][n] + brem[c][n] > 0) && t.cells.some(([c, n]) => hrem[c][n] > 0));
+  const tpl = templates().filter((t) => t.cells.some(([c, n]) => hrem[c][n] > 0) && t.cells.filter(([c, n]) => hrem[c][n] + brem[c][n] === 0).length <= hj.length);
   const build = (picks) => {
     const hs = hst.map((r) => r.map((a) => a.slice())), bs = bst.map((r) => r.map((a) => a.slice()));
+    const jk = hj.slice();
     const sets = [], borrowed = new Set(), usedHand = [];
     for (const i of picks) {
       const set = [];
       for (const [c, n] of tpl[i].cells) {
-        if (hs[c][n].length) { const id = hs[c][n].shift(); set.push(id); usedHand.push(id); } else { const id = bs[c][n].shift(); set.push(id); borrowed.add(id); }
+        if (hs[c][n].length) { const id = hs[c][n].shift(); set.push(id); usedHand.push(id); }
+        else if (bs[c][n].length) { const id = bs[c][n].shift(); set.push(id); borrowed.add(id); }
+        else { const id = jk.shift(); set.push(id); usedHand.push(id); }
       }
       sets.push(set);
     }
@@ -3385,7 +3390,7 @@ function findMeldsBorrow(hand, board) {
   };
   const check = (picks) => {
     const r = build(picks);
-    if (!r.borrowed.size || !r.usedHand.length) return null;
+    if (!r.borrowed.size || !r.usedHand.some((id) => !T(id).j)) return null;
     const bySet = new Map();
     for (const id of r.borrowed) { const si = siOf.get(id); if (!bySet.has(si)) bySet.set(si, new Set()); bySet.get(si).add(id); }
     const after = [];
@@ -3397,29 +3402,34 @@ function findMeldsBorrow(hand, board) {
     }
     return { sets: r.sets, usedHand: r.usedHand, boardAfter: after };
   };
-  let bestVal = -1, bestPicks = null, nodes = 0;
+  let bestVal = -1e9, bestPicks = null, nodes = 0;
   const picks = [];
-  function dfs(start, val) {
+  function dfs(start, val, jleft) {
     if (val > bestVal && picks.length && check(picks)) { bestVal = val; bestPicks = picks.slice(); }
-    if (nodes++ > 20000) return;
+    if (nodes++ > (adv ? 30000 : 20000)) return;
     for (let i = start; i < tpl.length; i++) {
       const cells = tpl[i].cells;
-      if (!cells.every(([c, n]) => hrem[c][n] + brem[c][n] > 0)) continue;
+      let miss = 0;
+      for (const [c, n] of cells) if (hrem[c][n] + brem[c][n] === 0) miss++;
+      if (miss > jleft) continue;
       let hu = 0, bu = 0;
       const took = [];
-      for (const [c, n] of cells) { if (hrem[c][n] > 0) { hrem[c][n]--; hu++; took.push([c, n, 0]); } else { brem[c][n]--; bu++; took.push([c, n, 1]); } }
+      for (const [c, n] of cells) {
+        if (hrem[c][n] > 0) { hrem[c][n]--; hu++; took.push([c, n, 0]); }
+        else if (brem[c][n] > 0) { brem[c][n]--; bu++; took.push([c, n, 1]); }
+      }
       picks.push(i);
-      dfs(i, val + hu * 1000 - bu * 2 + tpl[i].pts * 0.01);
+      dfs(i, val + hu * 1000 - bu * 2 - miss * 50 + tpl[i].pts * 0.01, jleft - miss);
       picks.pop();
       for (const [c, n, k] of took) { if (k) brem[c][n]++; else hrem[c][n]++; }
     }
   }
-  dfs(0, 0);
+  dfs(0, 0, hj.length);
   return bestPicks ? check(bestPicks) : null;
 }
 
 /* 電腦出牌計畫:回傳 {board, placed} 或 null(抽牌) */
-function botPlan(hand, board, melded, minInitial) {
+function botPlan(hand, board, melded, minInitial, adv) {
   const b = board.map((s) => s.slice());
   let h = hand.slice();
   const placed = [];
@@ -3519,7 +3529,7 @@ function botPlan(hand, board, melded, minInitial) {
             });
           }
           if (!ok) continue;
-          const nh = src.from === -1 ? hn.filter((x) => x !== src.rep) : hn;
+          const nh = adv ? (src.from === -1 ? h.filter((x) => x !== src.rep) : h.slice()) : (src.from === -1 ? hn.filter((x) => x !== src.rep) : hn);
           const apply = (newSets, nbAfter, usedHand) => {
             b.length = 0;
             b.push(...nbAfter, ...newSets);
@@ -3532,7 +3542,7 @@ function botPlan(hand, board, melded, minInitial) {
           // B: 換出來的 Joker 當替身 + 手牌 + 向桌面借牌
           for (let k = 0; k < 52; k++) {
             const fk = 200 + k;
-            const r = findMeldsBorrow(nh.concat(fk), nb);
+            const r = findMeldsBorrow(nh.concat(fk), nb, adv);
             if (!r || !r.usedHand.includes(fk)) continue;
             const fix = (x) => (x === fk ? jid : x);
             apply(r.sets.map((st) => st.map(fix)), r.boardAfter, r.usedHand.filter((x) => x !== fk));
@@ -3545,7 +3555,7 @@ function botPlan(hand, board, melded, minInitial) {
   };
   // 同時從幾個牌組借牌,配合手牌組成新牌組(例如藍2 + 從別組借藍3、藍4)
   const borrowMultiOnce = () => {
-    const r = findMeldsBorrow(h, b);
+    const r = findMeldsBorrow(h, b, adv);
     if (!r) return false;
     b.length = 0;
     b.push(...r.boardAfter, ...r.sets);
@@ -3562,14 +3572,20 @@ function botPlan(hand, board, melded, minInitial) {
     }
     return changed;
   };
-  for (let iter = 0; iter < 12; iter++) {
+  for (let iter = 0; iter < (adv ? 30 : 12); iter++) {
     let changed = false;
-    const m = findBestMelds(h, false, false);
+    const m = findBestMelds(h, false, !!adv);
     if (m.sets.length) { b.push(...m.sets); take(m.sets.flat()); changed = true; }
     if (extendOnce(false)) changed = true;
-    if (!changed) changed = borrowOnce();
-    if (!changed) changed = splitOnce();
-    if (!changed) changed = borrowMultiOnce();
+    if (adv) {
+      if (!changed) changed = borrowMultiOnce();
+      if (!changed) changed = borrowOnce();
+      if (!changed) changed = splitOnce();
+    } else {
+      if (!changed) changed = borrowOnce();
+      if (!changed) changed = splitOnce();
+      if (!changed) changed = borrowMultiOnce();
+    }
     if (!changed) changed = freeJokerOnce();
     if (!changed) break;
   }
@@ -3766,10 +3782,10 @@ function planScore(plan, hand) {
   return 1000 * real - 50 * jk + (placed.length >= hand.length ? 100000 : 0);
 }
 function bestPlan(hand, board, melded, minInitial, level) {
-  let plan = botPlan(hand, board, melded, minInitial);
-  if (melded && level !== 'easy') {
+  let plan = botPlan(hand, board, melded, minInitial, level === 'normal');
+  if (melded && level === 'hard') {
     let full = null;
-    const o = level === 'normal' ? { ms: 250, maxLevel: 2, maxDissolve: 8 } : { ms: 560 };
+    const o = { ms: 560 };
     try { full = solveFull(hand, board, o); } catch (e) { full = null; }
     if (full) {
       const r = checkMove(board, full.board, hand, melded, minInitial);
@@ -5074,4 +5090,4 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 09:09</div>
+<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 09:58</div>

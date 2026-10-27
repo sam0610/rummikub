@@ -91,6 +91,7 @@ button { cursor: pointer; }
 .tile.fresh { box-shadow: 0 0 0 3px var(--hl), 0 2px 0 rgba(0, 0, 0, 0.3), 0 6px 10px rgba(21, 26, 36, 0.14); }
 .tile.fresh.sel { box-shadow: 0 0 0 2.5px var(--ink), 0 0 0 5px var(--hl), 0 10px 14px rgba(21, 26, 36, 0.2); }
 .tile.sug { outline: 3px dashed #1f9d6b; outline-offset: 2px; }
+.btn.autobtn.on { background: var(--ink); color: #fff; border-color: var(--ink); }
 .assistbtn { border-color: #1f9d6b; color: #0f7b4f; font-weight: 700; }
 .assist { background: #ffffff; border: 1.5px solid #1f9d6b; border-radius: 14px; padding: 10px 12px; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .assist .ah { display: flex; justify-content: space-between; gap: 8px; align-items: baseline; flex-wrap: wrap; }
@@ -312,6 +313,15 @@ select.field { width: auto; }
 .card h3 { margin: 0 0 4px; font-size: 14px; color: var(--ink); letter-spacing: 0.04em; }
 .card p, .card li { margin: 0; font-size: 14px; color: #2c3444; }
 .card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 3px; }
+.lvctl { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
+.lvctl .stt { font-size: 13px; font-weight: 700; }
+.lvrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
+.lvrow .seg button { padding: 3px 8px; font-size: 12px; }
+.assist .agrp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--line); }
+.assist .agrp .lab { font-size: 12px; font-weight: 700; color: #0f7b4f; min-width: 34px; }
+.assist .agrp .op { color: var(--muted); font-weight: 700; }
+.assist .alg { font-size: 11px; color: var(--muted); }
+.mset.dim { opacity: 0.55; background: #e4e8ef; }
 .stbl { margin-top: 12px; overflow: auto; max-height: 220px; }
 .stbl .stt { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
 .stbl table { border-collapse: collapse; width: 100%; font-size: 13px; font-family: var(--num, system-ui); }
@@ -3139,7 +3149,7 @@ function makeGame(players, settings) {
     phase: 'play',
     settings: { timer: 0, initial: 30, ...(settings || {}) },
     players: players.map((p) => ({
-      id: p.id, name: p.name, bot: !!p.bot, tok: p.tok || null, peer: p.peer || null,
+      id: p.id, name: p.name, bot: !!p.bot, level: p.level || null, tok: p.tok || null, peer: p.peer || null,
       connected: p.bot ? true : p.connected !== false,
       hand: pool.splice(0, 14), melded: false, score: p.score || 0,
     })),
@@ -3739,7 +3749,7 @@ function bestPlan(hand, board, melded, minInitial, level) {
 /* 電腦回合:回傳 {type:'move', board} 或 {type:'draw'} */
 function botDecide(G, seat) {
   const p = G.players[seat];
-  const plan = bestPlan(p.hand, G.board, p.melded, G.settings.initial, G.settings.level);
+  const plan = bestPlan(p.hand, G.board, p.melded, G.settings.initial, p.level || G.settings.level);
   if (plan) {
     const r = checkMove(G.board, plan.board, p.hand, p.melded, G.settings.initial);
     if (r.ok) return { type: 'move', board: plan.board };
@@ -3824,7 +3834,7 @@ if (typeof module !== 'undefined') {
       phase: G.phase, code: code || null, rev: G.rev, settings: G.settings, turn: G.turn, turnNo: G.turnNo,
       board: G.board, pool: G.pool.length, lastPlaced: G.lastPlaced || [], winner: G.winner, endReason: G.endReason,
       results: G.results, rounds: G.rounds || [], log: G.log.slice(-12),
-      players: G.players.map((p) => ({ id: p.id, name: p.name, bot: p.bot, peer: p.peer, connected: p.connected, count: p.hand.length, melded: p.melded, score: p.score })),
+      players: G.players.map((p) => ({ id: p.id, name: p.name, bot: p.bot, peer: p.peer, connected: p.connected, auto: !!p.auto, level: p.level || null, count: p.hand.length, melded: p.melded, score: p.score })),
     };
   }
 
@@ -3926,9 +3936,9 @@ if (typeof module !== 'undefined') {
     const d = botDecide(G, seat);
     if (d.type === 'move') {
       const r = playMove(G, seat, d.board);
-      if (r.ok) { if (who === 'assist') G.log.push({ k: ++G.logSeq, m: `(${p.name} 離線,由電腦代打)` }); hostBroadcast(); return; }
+      if (r.ok) { if (who === 'assist') G.log.push({ k: ++G.logSeq, m: `(${p.name} 離線,由電腦代打)` }); else if (who === 'auto') G.log.push({ k: ++G.logSeq, m: `(${p.name} 由電腦代打)` }); hostBroadcast(); return; }
     }
-    drawTile(G, seat, who === 'assist' ? '離線,由電腦代抽一張牌' : undefined);
+    drawTile(G, seat, who === 'assist' ? '離線,由電腦代抽一張牌' : who === 'auto' ? '電腦代抽一張牌' : undefined);
     hostBroadcast();
   }
   function hostTick() {
@@ -3941,6 +3951,14 @@ if (typeof module !== 'undefined') {
         if (S.G !== G || G.phase !== 'play' || G.turn !== seat) return;
         hostBotMove(seat, 'bot');
       }, 900 + Math.random() * 900);
+      return;
+    }
+    if (p.auto) {
+      S.botTimer = setTimeout(() => {
+        S.botTimer = null;
+        if (S.G !== G || G.phase !== 'play' || G.turn !== seat || !G.players[seat].auto) return;
+        hostBotMove(seat, 'auto');
+      }, 1200 + Math.random() * 900);
       return;
     }
     if (!p.connected && now - (G.turnStartedAt || now) > 6000) { hostBotMove(seat, 'assist'); return; }
@@ -3981,6 +3999,22 @@ if (typeof module !== 'undefined') {
     const d = m.data || {};
     if (d.type === 'move') hostMove(seat, d.board, m.peer);
     else if (d.type === 'draw') hostDraw(seat);
+    else if (d.type === 'auto') setAuto(seat, !!d.on);
+    else if (d.type === 'level') setLevel(seat, d.level);
+  }
+  const LV = { easy: '簡單', normal: '普通', hard: '困難' };
+  function setLevel(seat, lv) {
+    const G = S.G, p = G && G.players[seat];
+    if (!p || !LV[lv] || p.level === lv) return;
+    p.level = lv;
+    hostBroadcast();
+  }
+  function setAuto(seat, on) {
+    const G = S.G, p = G && G.players[seat];
+    if (!p || p.bot || !!p.auto === on) return;
+    p.auto = on;
+    G.log.push({ k: ++G.logSeq, m: on ? `${p.name} 開啟電腦代打` : `${p.name} 取消電腦代打` });
+    hostBroadcast();
   }
   function onStateMsg(m) {
     if (S.isHost || m.sameTab) return;
@@ -4376,21 +4410,52 @@ if (typeof module !== 'undefined') {
     const n = L.ids.map(T).find((t) => !t.j);
     return n.n + ' 組合:' + L.ids.map((id) => (T(id).j ? '百搭' : CN[T(id).c])).join('、');
   }
+  /* 把「拆掉的舊牌組」和「新出現的牌組」按共用的牌連起來,每一塊分成:接牌 / 新組 / 重組 */
+  function diffGroups(oldBoard, newBoard) {
+    const oldKeys = new Set(oldBoard.map(setKey)), newKeys = new Set(newBoard.map(setKey));
+    const olds = oldBoard.filter((x) => !newKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
+    const news = newBoard.filter((x) => !oldKeys.has(setKey(x))).map((s) => layoutSet(s).ids);
+    const par = olds.concat(news).map((_, i) => i);
+    const find = (i) => (par[i] === i ? i : (par[i] = find(par[i])));
+    const owner = new Map();
+    olds.forEach((s, i) => s.forEach((id) => owner.set(id, i)));
+    news.forEach((s, j) => s.forEach((id) => { if (owner.has(id)) par[find(owner.get(id))] = find(olds.length + j); }));
+    const comps = new Map();
+    olds.forEach((s, i) => { const r = find(i); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).o.push(s); });
+    news.forEach((s, j) => { const r = find(olds.length + j); if (!comps.has(r)) comps.set(r, { o: [], n: [] }); comps.get(r).n.push(s); });
+    return [...comps.values()].map((c) => {
+      if (!c.o.length) return { kind: 'new', o: c.o, n: c.n };
+      if (c.o.length === 1 && c.n.length === 1 && c.o[0].every((id) => c.n[0].includes(id))) return { kind: 'ext', o: c.o, n: c.n };
+      return { kind: 'redo', o: c.o, n: c.n };
+    }).sort((a, b) => ({ ext: 0, new: 1, redo: 2 }[a.kind] - { ext: 0, new: 1, redo: 2 }[b.kind]));
+  }
+  function assistGroupHTML(g, placed) {
+    const dim = (s) => `<span class="mset dim">${s.map((id) => miniTile(id)).join('')}</span>`;
+    const hl = (s) => miniSet(s, placed);
+    if (g.kind === 'new') return `<div class="agrp"><span class="lab">新組</span>${g.n.map(hl).join('')}</div>`;
+    if (g.kind === 'ext') {
+      const add = g.n[0].filter((id) => !g.o[0].includes(id));
+      return `<div class="agrp"><span class="lab">接牌</span>${dim(g.o[0])}<span class="op">＋</span><span class="mset">${add.map((id) => miniTile(id, placed.has(id))).join('')}</span><span class="op">＝</span>${hl(g.n[0])}</div>`;
+    }
+    return `<div class="agrp"><span class="lab">重組</span>${g.o.map(dim).join('')}<span class="op">→</span>${g.n.map(hl).join('')}</div>`;
+  }
   function planSuggestion() {
     const pub = S.pub, ini = pub.settings.initial;
-    const plan = bestPlan(S.hand, pub.board, S.melded, ini, 'hard');
+    const meP0 = pub.players.find((p) => p.id === S.myId);
+    const lv = (meP0 && meP0.level) || pub.settings.level || 'hard';
+    const plan = bestPlan(S.hand, pub.board, S.melded, ini, lv);
     if (plan) {
       const r = checkMove(pub.board, plan.board, S.hand, S.melded, ini);
       if (r.ok) {
         const oldKeys = new Set(pub.board.map(setKey)), newKeys = new Set(plan.board.map(setKey));
         const made = plan.board.filter((x) => !oldKeys.has(setKey(x)));
         const broken = pub.board.filter((x) => !newKeys.has(setKey(x)));
-        return { ok: true, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), madeIds: made.map((x) => layoutSet(x).ids), brokenIds: broken.map((x) => layoutSet(x).ids), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
+        return { ok: true, lv, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), groups: diffGroups(pub.board, plan.board), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
       }
     }
     let miss = null;
     if (!S.melded) { const m = findBestMelds(S.hand, true, true); miss = Math.max(0, ini - m.points); }
-    return { ok: false, miss };
+    return { ok: false, lv, miss };
   }
   function doAssist() {
     if (S.pub && S.pub.settings.assist === false) return;
@@ -4412,10 +4477,11 @@ if (typeof module !== 'undefined') {
     const a = S.assist;
     if (!a || !isMyTurn()) return '';
     const g = a.sug;
-    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議:可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
-      ${g.madeIds.map((st) => `<div class="arow"><span class="lab">新組</span>${miniSet(st, new Set(g.placed))}</div>`).join('')}${g.brokenIds.map((st) => `<div class="arow brk"><span class="lab">拆開</span>${miniSet(st)}</div>`).join('')}
+    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議(${LV[g.lv] || ''}):可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
+      ${g.groups.map((x) => assistGroupHTML(x, new Set(g.placed))).join('')}
+      <div class="alg">黃色底線 = 你手上要打出的牌 · 灰色 = 桌面原有的牌組</div>
       <div class="ar2"><button class="btn small primary" data-a="assistApply">照建議擺牌</button><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
-    return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
+    return `<div class="assist"><div class="ah"><b>智能建議(${LV[g.lv] || ''}):這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
   }
   function resetWork() {
     if (!isMyTurn()) return;
@@ -4502,7 +4568,7 @@ if (typeof module !== 'undefined') {
 
   function playerRows(pub, withKick) {
     return pub.players.map((p) => `<li><span class="nm">${esc(p.name)}${p.id === S.myId ? '(你)' : ''}</span>
-      ${p.bot ? '<span class="badge">電腦</span>' : ''}${pub.players[0] && p.id === pub.players[0].id && !p.bot ? '<span class="badge host">房主</span>' : ''}${!p.connected ? '<span class="badge off">離線</span>' : ''}</li>`).join('');
+      ${p.bot ? '<span class="badge">電腦</span>' : ''}${p.auto ? '<span class="badge">代打中</span>' : ''}${pub.players[0] && p.id === pub.players[0].id && !p.bot ? '<span class="badge host">房主</span>' : ''}${!p.connected ? '<span class="badge off">離線</span>' : ''}</li>`).join('');
   }
   const inviteURL = () => location.origin + location.pathname + '?r=' + S.code;
   function qrSVG(url) {
@@ -4527,6 +4593,7 @@ if (typeof module !== 'undefined') {
       <div class="row"><span class="hint">智能建議</span><div class="seg">${[[true, '開啟'], [false, '關閉']].map(([v, l]) => `<button data-a="setAssist" data-n="${v ? 1 : 0}" class="${(pub.settings.assist !== false) === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
       <button class="btn primary" data-a="start"${n < 2 ? ' disabled' : ''}>開始遊戲(${n} 人)</button>
       <div class="row"><span class="hint">電腦難度</span><div class="seg">${[['easy', '簡單'], ['normal', '普通'], ['hard', '困難']].map(([v, l]) => `<button data-a="setLevel" data-n="${v}" class="${(pub.settings.level || 'hard') === v ? 'on' : ''}">${l}</button>`).join('')}</div></div>
+      ${levelCtlHTML(pub)}
       ${n < 2 ? '<p class="hint">至少需要 2 位玩家,可以先加入電腦。</p>' : ''}` : `<p class="hint">本局設定:${pub.settings.timer > 0 ? '每回合 ' + pub.settings.timer + ' 秒' : '不計時'} · 智能建議${pub.settings.assist === false ? '關閉' : '開啟'}</p><p class="hint">等待房主開始遊戲…${S.hostGone ? ' <span style="color:var(--bad)">(房主似乎離線了)</span>' : ''}</p>`;
     return `<div class="lobby"><div class="hero"><h1>魔橋</h1></div>
       <div class="panel">
@@ -4545,9 +4612,11 @@ if (typeof module !== 'undefined') {
     if (S.hostGone) return { cls: 'bad', t: '房主似乎離線了,牌局暫停' };
     if (!isMyTurn()) {
       if (cur.bot) return { cls: 'mute', t: `${cur.name}(電腦)思考中…` };
+      if (cur.auto) return { cls: 'mute', t: `${cur.name} 電腦代打中…` };
       const drafting = S.draft && S.draft.n === pub.turnNo;
       return { cls: 'mute', t: `輪到 ${cur.name}${!cur.connected ? '(離線)' : drafting ? ',正在擺牌…' : ''}` };
     }
+    if (cur.auto) return { cls: 'mute', t: '電腦代打中…想自己出牌請按「電腦代打:開」取消。' };
     const c = turnCheck();
     if (!c || !c.dirty) return { cls: '', t: S.melded ? '把手牌拖到桌面,或按「抽牌」。' : '首次出牌只能用自己的手牌,不能動桌面上的牌。' };
     if (c.r.ok) return { cls: 'ok', t: `可以完成回合了(打出 ${c.r.added.length} 張${!S.melded ? `,${c.pts} 點` : ''})` };
@@ -4615,6 +4684,7 @@ if (typeof module !== 'undefined') {
     const sizerHTML = `<span class="szl">牌大小</span><button class="btn small" data-a="twMinus" aria-label="縮小牌">－</button><button class="btn small" data-a="twPlus" aria-label="放大牌">＋</button>`;
     const rs = S.replay && S.replay.idx > 0 ? S.replay.steps[S.replay.idx - 1] : null;
     const replayCap = rs ? `<div class="replaycap"><span class="rn">${esc(rs.name)}</span>${rs.added && rs.added.length ? `<span>打出 ${rs.added.length} 張牌</span><span class="msets">${rs.added.slice(0, 14).map((id) => miniTile(id)).join('')}</span>` : rs.changed ? '<span>重新整理了桌面</span>' : '<span>抽了一張牌</span><i class="mt back"></i>'}</div>` : '';
+    const meP = pub.players.find((p) => p.id === S.myId);
     const canReplay = pub.phase === 'play' && !S.replay && replaySteps().length > 0;
     const flEl = S.turnFlash ? Date.now() - S.turnFlash : -1;
     const flash = my && flEl >= 0 && flEl < 2600;
@@ -4633,7 +4703,7 @@ if (typeof module !== 'undefined') {
       <div class="deck${my ? ' mine' : ''}${flash ? ' flash' : ''}"${flash ? ` style="animation-delay:-${flEl}ms"` : ''}>
         ${S.hostGone ? '<div class="banner">房主已離線。等待房主重新連線,或離開房間。</div>' : ''}
         <div class="status">${my ? '<span class="yourturn">輪到你</span>' : ''}<div class="msg ${st.cls}">${esc(st.t)}</div>${meter}
-          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
+          <div class="actions"><div class="al"><button class="btn small" data-a="sort-color">按顏色</button><button class="btn small" data-a="sort-num">按數字</button>${pub.phase === 'play' && meP ? `<button class="btn small autobtn${meP.auto ? ' on' : ''}" data-a="auto">電腦代打:${meP.auto ? '開' : '關'}</button>` : ''}${my && pub.settings.assist !== false ? '<button class="btn small assistbtn" data-a="assist">智能建議</button>' : ''}</div></div></div>
         ${assistHTML()}
         <div class="rackwrap">
         <div class="rack${deal ? ' deal' : ''}" id="rack">${rackIds.length ? rackIds.map((id, i) => tileHTML(id, { sel: sel === id || S.msel.includes(id) || S.groups.some((g) => g.includes(id)), g: S.groups.findIndex((g) => g.includes(id)) + 1, fresh: S.fresh.has(id), hint: !!(S.hint && S.hint.has(id)), drag: dg === id, i: deal ? i : null, gap: !!S.sortMode && i > 0 && gapKey(id) !== gapKey(rackIds[i - 1]) })).join('') : '<span class="none">手牌已全部擺到桌面</span>'}</div></div>
@@ -4641,6 +4711,7 @@ if (typeof module !== 'undefined') {
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
         <div class="sidebtns"><span class="sizer">${sizerHTML}</span>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
+        ${levelCtlHTML(pub)}
         ${scoreTableHTML(pub)}
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>
         ${S.room ? `<div class="chatrow"><input id="chatIn" class="field" maxlength="120" placeholder="說點什麼…" autocomplete="off"><button class="btn small" data-a="chat">送出</button></div>` : ''}
@@ -4650,6 +4721,19 @@ if (typeof module !== 'undefined') {
     </div>`;
   }
 
+  function levelCtlHTML(pub) {
+    const eff = (p) => p.level || pub.settings.level || 'hard';
+    const seg = (act, id, cur) => `<span class="seg">${Object.entries(LV).map(([v, l]) => `<button data-a="${act}" data-id="${id}" data-n="${v}" class="${cur === v ? 'on' : ''}">${l}</button>`).join('')}</span>`;
+    const bots = pub.players.filter((p) => p.bot);
+    const meP = pub.players.find((p) => p.id === S.myId);
+    const rows = [];
+    if (S.isHost && bots.length) {
+      rows.push(`<div class="lvrow"><b>全部電腦</b>${seg('setAllBots', '', null)}</div>`);
+      for (const p of bots) rows.push(`<div class="lvrow"><span>${esc(p.name)}</span>${seg('setBotLevel', p.id, eff(p))}</div>`);
+    }
+    if (meP) rows.push(`<div class="lvrow"><span>我的代打強度</span>${seg('setMyLevel', '', eff(meP))}</div>`);
+    return rows.length ? `<div class="lvctl"><div class="stt">電腦強度</div>${rows.join('')}</div>` : '';
+  }
   function scoreTableHTML(pub) {
     const rs = pub.rounds || [];
     if (!rs.length) return '';
@@ -4798,7 +4882,7 @@ if (typeof module !== 'undefined') {
   function doAction(k, el) {
     switch (k) {
       case 'soloLevel': S.soloLevel = ['easy', 'normal'].includes(el.dataset.n) ? el.dataset.n : 'hard'; render(); break;
-      case 'setLevel': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.level = ['easy', 'normal'].includes(el.dataset.n) ? el.dataset.n : 'hard'; hostBroadcast(); } break;
+      case 'setLevel': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.level = ['easy', 'normal'].includes(el.dataset.n) ? el.dataset.n : 'hard'; S.G.players.forEach((p) => { p.level = null; }); hostBroadcast(); } break;
       case 'soloAssist': S.soloAssist = el.dataset.n === '1'; render(); break;
       case 'setAssist': if (S.isHost && S.G && S.G.phase === 'wait') { S.G.settings.assist = el.dataset.n === '1'; hostBroadcast(); } break;
       case 'soloTimer': S.soloTimer = +el.dataset.n; render(); break;
@@ -4835,6 +4919,10 @@ if (typeof module !== 'undefined') {
       case 'putmulti': moveMulti({ kind: 'board' }); break;
       case 'putgroups': putGroups(); break;
       case 'draw': drawAction(); break;
+      case 'setBotLevel': if (S.isHost && S.G) { const i = S.G.players.findIndex((p) => p.id === el.dataset.id && p.bot); if (i >= 0) setLevel(i, el.dataset.n); } break;
+      case 'setAllBots': if (S.isHost && S.G && LV[el.dataset.n]) { S.G.players.forEach((p) => { if (p.bot) p.level = el.dataset.n; }); S.G.settings.level = el.dataset.n; hostBroadcast(); } break;
+      case 'setMyLevel': { if (!S.pub || !LV[el.dataset.n]) break; if (S.isHost) setLevel(S.G.players.findIndex((p) => p.id === S.myId), el.dataset.n); else netEmit('act', { type: 'level', level: el.dataset.n }); break; }
+      case 'auto': { const me = S.pub && S.pub.players.find((p) => p.id === S.myId); if (!me || S.pub.phase !== 'play') break; const on = !me.auto; if (S.isHost) setAuto(S.G.players.findIndex((p) => p.id === S.myId), on); else netEmit('act', { type: 'auto', on }); break; }
       case 'assist': doAssist(); break;
       case 'assistApply': applyAssist(); break;
       case 'assistClose': S.assist = null; S.hint = null; render(); break;

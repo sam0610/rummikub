@@ -4407,19 +4407,21 @@ if (typeof module !== 'undefined') {
   }
   function planSuggestion() {
     const pub = S.pub, ini = pub.settings.initial;
-    const plan = bestPlan(S.hand, pub.board, S.melded, ini, 'hard');
+    const meP0 = pub.players.find((p) => p.id === S.myId);
+    const lv = (meP0 && meP0.level) || pub.settings.level || 'hard';
+    const plan = bestPlan(S.hand, pub.board, S.melded, ini, lv);
     if (plan) {
       const r = checkMove(pub.board, plan.board, S.hand, S.melded, ini);
       if (r.ok) {
         const oldKeys = new Set(pub.board.map(setKey)), newKeys = new Set(plan.board.map(setKey));
         const made = plan.board.filter((x) => !oldKeys.has(setKey(x)));
         const broken = pub.board.filter((x) => !newKeys.has(setKey(x)));
-        return { ok: true, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), madeIds: made.map((x) => layoutSet(x).ids), brokenIds: broken.map((x) => layoutSet(x).ids), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
+        return { ok: true, lv, plan, placed: plan.placed.slice(), made: made.map(setText), broken: broken.map(setText), madeIds: made.map((x) => layoutSet(x).ids), brokenIds: broken.map((x) => layoutSet(x).ids), pts: S.melded ? 0 : newSetPoints(pub.board, plan.board), left: S.hand.length - plan.placed.length };
       }
     }
     let miss = null;
     if (!S.melded) { const m = findBestMelds(S.hand, true, true); miss = Math.max(0, ini - m.points); }
-    return { ok: false, miss };
+    return { ok: false, lv, miss };
   }
   function doAssist() {
     if (S.pub && S.pub.settings.assist === false) return;
@@ -4441,10 +4443,10 @@ if (typeof module !== 'undefined') {
     const a = S.assist;
     if (!a || !isMyTurn()) return '';
     const g = a.sug;
-    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議:可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
+    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議(${LV[g.lv] || ''}):可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
       ${g.madeIds.map((st) => `<div class="arow"><span class="lab">新組</span>${miniSet(st, new Set(g.placed))}</div>`).join('')}${g.brokenIds.map((st) => `<div class="arow brk"><span class="lab">拆開</span>${miniSet(st)}</div>`).join('')}
       <div class="ar2"><button class="btn small primary" data-a="assistApply">照建議擺牌</button><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
-    return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
+    return `<div class="assist"><div class="ah"><b>智能建議(${LV[g.lv] || ''}):這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
   }
   function resetWork() {
     if (!isMyTurn()) return;
@@ -5016,4 +5018,4 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:03</div>
+<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:16</div>

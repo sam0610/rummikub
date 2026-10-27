@@ -315,12 +315,15 @@ select.field { width: auto; }
 .card ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 3px; }
 .lvctl { margin: 8px 0; display: flex; flex-direction: column; gap: 6px; font-size: 13px; }
 .lvctl .stt { font-size: 13px; font-weight: 700; }
+.card .lvctl .stt { display: none; }
 .lvrow { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex-wrap: wrap; }
 .lvrow .seg button { padding: 3px 8px; font-size: 12px; }
 .assist .agrp { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; padding: 4px 0; border-top: 1px solid var(--line); }
 .assist .agrp .lab { font-size: 12px; font-weight: 700; color: #0f7b4f; min-width: 34px; }
 .assist .agrp .op { color: var(--muted); font-weight: 700; }
 .assist .alg { font-size: 11px; color: var(--muted); }
+.assist .alv { margin-left: auto; }
+.assist .alv button { padding: 2px 8px; font-size: 12px; }
 .mset.dim { opacity: 0.55; background: #e4e8ef; }
 .stbl { margin-top: 12px; overflow: auto; max-height: 220px; }
 .stbl .stt { font-size: 13px; font-weight: 700; margin-bottom: 6px; }
@@ -4003,6 +4006,7 @@ if (typeof module !== 'undefined') {
     else if (d.type === 'level') setLevel(seat, d.level);
   }
   const LV = { easy: '簡單', normal: '普通', hard: '困難' };
+  try { const v = LS.get('mkt-alv'); if (LV[v]) S.assistLv = v; } catch (e) {}
   function setLevel(seat, lv) {
     const G = S.G, p = G && G.players[seat];
     if (!p || !LV[lv] || p.level === lv) return;
@@ -4441,8 +4445,7 @@ if (typeof module !== 'undefined') {
   }
   function planSuggestion() {
     const pub = S.pub, ini = pub.settings.initial;
-    const meP0 = pub.players.find((p) => p.id === S.myId);
-    const lv = (meP0 && meP0.level) || pub.settings.level || 'hard';
+    const lv = S.assistLv || pub.settings.level || 'hard';
     const plan = bestPlan(S.hand, pub.board, S.melded, ini, lv);
     if (plan) {
       const r = checkMove(pub.board, plan.board, S.hand, S.melded, ini);
@@ -4477,11 +4480,11 @@ if (typeof module !== 'undefined') {
     const a = S.assist;
     if (!a || !isMyTurn()) return '';
     const g = a.sug;
-    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議(${LV[g.lv] || ''}):可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span></div>
+    if (g.ok) return `<div class="assist"><div class="ah"><b>智能建議:可以出 ${g.placed.length} 張牌${S.melded ? '' : `(${g.pts} 點)`}</b><span class="muted">出完剩 ${g.left} 張</span><span class="seg alv">${Object.entries(LV).map(([v, l]) => `<button data-a="assistLv" data-n="${v}" class="${g.lv === v ? 'on' : ''}">${l}</button>`).join('')}</span></div>
       ${g.groups.map((x) => assistGroupHTML(x, new Set(g.placed))).join('')}
       <div class="alg">黃色底線 = 你手上要打出的牌 · 灰色 = 桌面原有的牌組</div>
       <div class="ar2"><button class="btn small primary" data-a="assistApply">照建議擺牌</button><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
-    return `<div class="assist"><div class="ah"><b>智能建議(${LV[g.lv] || ''}):這回合沒有合適的牌可以出</b></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
+    return `<div class="assist"><div class="ah"><b>智能建議:這回合沒有合適的牌可以出</b><span class="seg alv">${Object.entries(LV).map(([v, l]) => `<button data-a="assistLv" data-n="${v}" class="${g.lv === v ? 'on' : ''}">${l}</button>`).join('')}</span></div><p>${g.miss != null && g.miss > 0 ? `首次出牌要湊滿 ${S.pub.settings.initial} 點,你的手牌目前最多還差 ${g.miss} 點。` : '用手牌和桌面的牌都組不出新的合法牌組。'}建議按「抽牌」。</p><div class="ar2"><button class="btn small" data-a="assistClose">關閉</button></div></div>`;
   }
   function resetWork() {
     if (!isMyTurn()) return;
@@ -4695,7 +4698,7 @@ if (typeof module !== 'undefined') {
         <div class="players">${chips}</div>
         <div class="strip"><span class="latest">${S.replay ? `回放 ${Math.max(1, S.replay.idx)}/${S.replay.steps.length}` : '最新'}:<b>${esc(S.replay ? S.replay.steps[Math.max(0, S.replay.idx - 1)].msg : lastEv ? lastEv.m : '牌局開始')}</b>${!S.replay && lastEv && lastEv.a ? `<span class="msets">${lastEv.a.slice(0, 12).map((id) => miniTile(id)).join('')}</span>` : ''}</span><span class="sp"></span>${S.replay ? '<button class="btn small replaybtn" data-a="replayStop">停止</button>' : canReplay ? '<button class="btn small replaybtn" data-a="replay">▶ 重播上一輪</button>' : ''}${timer}<span>牌堆 <b class="num">${pub.pool}</b></span></div>
         <span class="sizer topx" title="牌的大小">${sizerHTML}</span>${`<span class="topx">${sndBtn}</span>`}
-        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">更多 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>` : ''}</span>
+        <span class="morewrap"><button class="btn small morebtn${S.moreOpen ? ' on' : ''}" data-a="more" aria-expanded="${S.moreOpen ? 'true' : 'false'}">更多 ${S.moreOpen ? '▴' : '▾'}</button>${S.moreOpen ? `<div class="moremenu"><div class="mmrow"><span class="sizer">${sizerHTML}</span></div>${sndBtn}<button class="btn small" data-a="level">電腦強度</button><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>` : ''}</span>
         <button class="btn small menubtn" data-a="panel"><span class="lbl">紀錄</span><span class="ham">☰</span>${S.unread ? '<i class="dot"></i>' : ''}</button>
         <button class="btn small topx" data-a="rules">規則</button>
         <button class="btn small danger topx" data-a="leave">離開</button></div>
@@ -4710,13 +4713,12 @@ if (typeof module !== 'undefined') {
         ${dockHTML}
       </div>
       ${S.panel ? '<div class="scrim" data-a="panel"></div>' : ''}<aside class="side${S.panel ? ' open' : ''}"><h3>紀錄與聊天 <button class="btn small" data-a="panel">關閉</button></h3>
-        <div class="sidebtns"><span class="sizer">${sizerHTML}</span>${sndBtn}<button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
-        ${levelCtlHTML(pub)}
+        <div class="sidebtns"><span class="sizer">${sizerHTML}</span>${sndBtn}<button class="btn small" data-a="level">電腦強度</button><button class="btn small" data-a="rules">規則</button><button class="btn small danger" data-a="leave">離開房間</button></div>
         ${scoreTableHTML(pub)}
         <div class="feed" id="feed">${feed || '<div>還沒有紀錄</div>'}</div>
         ${S.room ? `<div class="chatrow"><input id="chatIn" class="field" maxlength="120" placeholder="說點什麼…" autocomplete="off"><button class="btn small" data-a="chat">送出</button></div>` : ''}
       </aside>
-      ${S.modal === 'rules' ? rulesHTML() : ''}
+      ${S.modal === 'rules' ? rulesHTML() : ''}${S.modal === 'level' ? levelModalHTML(pub) : ''}
       ${pub.phase === 'end' && !S.hideResult ? resultHTML() : ''}
     </div>`;
   }
@@ -4732,7 +4734,15 @@ if (typeof module !== 'undefined') {
       for (const p of bots) rows.push(`<div class="lvrow"><span>${esc(p.name)}</span>${seg('setBotLevel', p.id, eff(p))}</div>`);
     }
     if (meP) rows.push(`<div class="lvrow"><span>我的代打強度</span>${seg('setMyLevel', '', eff(meP))}</div>`);
-    return rows.length ? `<div class="lvctl"><div class="stt">電腦強度</div>${rows.join('')}</div>` : '';
+    rows.push(`<div class="lvrow"><span>我的智能建議強度</span>${seg('assistLv', '', S.assistLv || pub.settings.level || 'hard')}</div>`);
+    return `<div class="lvctl"><div class="stt">電腦強度</div>${rows.join('')}</div>`;
+  }
+  function levelModalHTML(pub) {
+    return `<div class="overlay" data-a="closeRules"><div class="card" data-keep="1">
+      <h2>電腦強度</h2>
+      ${levelCtlHTML(pub)}
+      <p class="hint">電腦對手和代打在下一次輪到時按新強度出牌;智能建議在下次按「智能建議」時生效。</p>
+      <div class="row"><span class="grow"></span><button class="btn primary" data-a="closeRules">完成</button></div></div></div>`;
   }
   function scoreTableHTML(pub) {
     const rs = pub.rounds || [];
@@ -4893,6 +4903,8 @@ if (typeof module !== 'undefined') {
       case 'join': joinRoom(($('#inCode') || {}).value); break;
       case 'resume': resumeHost(); break;
       case 'rules': S.modal = 'rules'; render(); break;
+      case 'level': S.modal = 'level'; S.moreOpen = false; S.panel = false; render(); break;
+      case 'assistLv': if (LV[el.dataset.n]) { S.assistLv = el.dataset.n; LS.set('mkt-alv', el.dataset.n); if (S.assist && isMyTurn()) doAssist(); else render(); } break;
       case 'closeRules': S.modal = null; render(); break;
       case 'replay': startReplay(); break;
       case 'replayStop': stopReplay(); break;
@@ -5053,4 +5065,4 @@ if (typeof module !== 'undefined') {
   
 })();
 </script>
-<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:20</div>
+<div style="position:fixed;left:8px;bottom:6px;z-index:9999;pointer-events:none;font:700 11px/1.2 system-ui;color:#fff;background:#c2410c;padding:3px 8px;border-radius:99px;opacity:.9">內部測試版 · 2026-10-27 08:25</div>
